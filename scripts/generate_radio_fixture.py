@@ -31,7 +31,7 @@ def generate(model_dir, output):
             ):
                 while chunk := response.read(1024 * 1024):
                     size += len(chunk)
-                    if size > 80 * 1024 * 1024:
+                    if size > 220 * 1024 * 1024:
                         raise ValueError("TTS dependency exceeds limit")
                     digest.update(chunk)
                     file.write(chunk)
@@ -43,7 +43,7 @@ def generate(model_dir, output):
     config = sherpa_onnx.OfflineTtsConfig(
         model=sherpa_onnx.OfflineTtsModelConfig(
             vits=sherpa_onnx.OfflineTtsVitsModelConfig(
-                model=str(model_dir / "model.int8.onnx"),
+                model=str(model_dir / "model.onnx"),
                 lexicon=str(model_dir / "lexicon.txt"),
                 tokens=str(model_dir / "tokens.txt"),
                 dict_dir=str(model_dir / "dict"),
