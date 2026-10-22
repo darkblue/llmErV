@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ArrowLeft, BookOpen, ClipboardCheck, FileText } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { EventAnalysis, type EventInfo } from "../../components/event-analysis";
+import { RadioDigitReview } from "../../components/radio-digit-review";
 const API = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
 type Excerpt = {
   id: string;
@@ -618,6 +619,11 @@ export default function ReviewPage() {
                 {segment.original_text || segment.text}
               </pre>
               <h3>当前修订稿</h3>
+              <RadioDigitReview
+                segmentId={segment.segment_id}
+                text={segment.corrected_text ?? segment.text}
+                onApplied={refresh}
+              />
               <textarea
                 aria-label="修订稿"
                 rows={5}
@@ -835,7 +841,9 @@ export default function ReviewPage() {
                 版本 {r.version} ·{" "}
                 {r.method === "reference_term_review"
                   ? "参考术语修订"
-                  : "人工修改"}
+                  : r.method === "radio_digit_review"
+                    ? "数字报读确认"
+                    : "人工修改"}
               </strong>
               <small>{new Date(r.created_at).toLocaleString("zh-CN")}</small>
               <p>
