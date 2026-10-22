@@ -85,11 +85,24 @@ def check():
         observed = "".join(
             m["radio_digits"]["digits"] for m in finals if m.get("radio_digits")
         )
+        # Same samples, unrestricted decoder: distinguish fixture quality from
+        # constrained-grammar regressions without using the reference as input.
+        from vosk import KaldiRecognizer
+
+        baseline = KaldiRecognizer(load_model(), 16000)
+        baseline_texts = []
+        with wave.open(str(path / "digits.wav")) as wav:
+            wav.setpos(8000)
+            while pcm := wav.readframes(3200):
+                if baseline.AcceptWaveform(pcm):
+                    baseline_texts.append(json.loads(baseline.Result()).get("text", ""))
+            baseline_texts.append(json.loads(baseline.FinalResult()).get("text", ""))
         report = {
             "source": "self-authored MIT MeloTTS synthetic speech; not human radio evaluation",
             "reference": "1270",
             "synthesis_input": "幺，两，拐，洞。",
             "observed_digits": observed,
+            "general_decoder_baseline": " ".join(baseline_texts).strip(),
             "raw_finals": [m["original_text"] for m in finals],
             "partials": len(partials),
             "native_vocabulary": vocabulary(load_model()),
