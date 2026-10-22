@@ -53,8 +53,35 @@ def generate(model_dir, output):
         )
     )
     tts = sherpa_onnx.OfflineTts(config)
-    audio = tts.generate(manifest["text"], sid=0, speed=1.0)
-    samples = np.clip(np.asarray(audio.samples), -1, 1)
+    clips = []
+    metrics = []
+    for reading in ["幺", "两", "拐", "洞"]:
+        audio = tts.generate(reading, sid=0, speed=1.0)
+        clip = np.asarray(audio.samples).copy()
+        peak = float(np.max(np.abs(clip))) if len(clip) else 0
+        rms = float(np.sqrt(np.mean(clip**2))) if len(clip) else 0
+        metrics.append(
+            {
+                "reading": reading,
+                "seconds": len(clip) / audio.sample_rate,
+                "peak": peak,
+                "rms": rms,
+            }
+        )
+        print(json.dumps(metrics[-1], ensure_ascii=False), flush=True)
+        if (
+            len(clip) < audio.sample_rate // 10
+            or not np.isfinite(clip).all()
+            or peak < 0.001
+        ):
+            raise ValueError("Synthetic fixture has no usable voiced audio")
+        clips.extend(
+            [
+                clip / peak * 0.8,
+                np.zeros(round(audio.sample_rate * 0.3), dtype=np.float32),
+            ]
+        )
+    samples = np.clip(np.concatenate(clips), -1, 1)
     output.parent.mkdir(parents=True, exist_ok=True)
     with wave.open(str(output), "wb") as wav:
         wav.setnchannels(1)
@@ -69,6 +96,7 @@ def generate(model_dir, output):
                 "text": manifest["text"],
                 "model_commit": manifest["commit"],
                 "audio_sha256": hashlib.sha256(output.read_bytes()).hexdigest(),
+                "digit_audio_metrics": metrics,
             },
             ensure_ascii=False,
         )
