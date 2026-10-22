@@ -50,7 +50,7 @@ jobs:
             exit 1
           fi
           cd frontend
-          npm run test:e2e
+          npm run test:e2e 2>&1 | tee /tmp/browser.log
       - name: Docker build
         run: docker compose build
       - name: Container backend tests
@@ -60,6 +60,9 @@ jobs:
       - name: Collect container logs
         if: always()
         run: docker compose logs --no-color > /tmp/compose.log 2>&1
+      - name: Summarize failures in check annotations
+        if: failure()
+        run: python scripts/ci_failure_summary.py
       - name: Preserve failure diagnostics
         if: failure()
         uses: actions/upload-artifact@v4
@@ -68,6 +71,7 @@ jobs:
           path: |
             /tmp/backend-tests.xml
             /tmp/backend.log
+            /tmp/browser.log
             /tmp/compose.log
             frontend/test-results/
           if-no-files-found: ignore
