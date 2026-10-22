@@ -1,4 +1,6 @@
 # llmErV
+主界面事件分析与人工修订操作说明：[docs/REVIEW.md](docs/REVIEW.md)。保存修订后会重算事件分析，原始识别文本保留；这不会训练 ASR 模型。
+
 Airport Emergency Rescue Voice Intelligence Platform · 机场应急救援智能语音平台
 
 Phase 1 development demo. **Default is 模拟识别**: actual uploaded audio is played and streamed in PCM chunks; the mock prints received duration, not recognized speech. Real FunASR adapter is optional and not validated with a downloaded model. No accuracy claim or automatic command dispatch.

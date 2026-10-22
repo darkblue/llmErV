@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, BookOpen, ClipboardCheck, FileText } from "lucide-react";
 import { Button } from "../../components/ui/button";
+import { EventAnalysis, type EventInfo } from "../../components/event-analysis";
 const API = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
 type Excerpt = {
   id: string;
@@ -125,6 +126,7 @@ export default function ReviewPage() {
     [ruleAfter, setRuleAfter] = useState("指挥中心"),
     [ruleExcerpt, setRuleExcerpt] = useState(""),
     [context, setContext] = useState("aoc_rescue");
+  const [events, setEvents] = useState<EventInfo[]>([]);
   const player = useRef<HTMLAudioElement | null>(null);
   const ref = references.find((r) => r.id === activeRef),
     segment = segments.find((s) => s.segment_id === selectedId);
@@ -165,7 +167,24 @@ export default function ReviewPage() {
     setProposal(undefined);
     setChosen([]);
     setAudioAck(false);
-    setEdited(segment?.corrected_text || segment?.text || "");
+    setEdited(segment?.corrected_text ?? segment?.text ?? "");
+    setEvents([]);
+    if (segment) {
+      const id = segment.session_id;
+      let cancelled = false;
+      call<EventInfo[]>("/events?session_id=" + encodeURIComponent(id))
+        .then((items) => {
+          if (!cancelled) setEvents(items);
+        })
+        .catch((e) => {
+          if (!cancelled) setNotice(e.message);
+        });
+      return () => {
+        cancelled = true;
+      };
+    }
+  }, [selectedId, segment?.corrected_text]);
+  useEffect(() => {
     setRevisions([]);
     if (selectedId)
       call<Revision[]>("/transcripts/" + selectedId + "/revisions")
@@ -228,7 +247,7 @@ export default function ReviewPage() {
       await call<Revision[]>("/transcripts/" + selectedId + "/revisions"),
     );
     setProposal(undefined);
-    setNotice("修订已保存；原始转写保留，旧事件分析未自动重算。");
+    setNotice("修订已保存，事件分析已更新；原始转写保留。");
   }
   function listen() {
     if (!segment || !player.current) return;
@@ -249,7 +268,14 @@ export default function ReviewPage() {
             <p>REFERENCE EVIDENCE · AUDIO REVIEW · REVISION HISTORY</p>
           </div>
         </div>
-        <Link className="button outline" href="/">
+        <Link
+          className="button outline"
+          href={
+            segment
+              ? "/?session=" + encodeURIComponent(segment.session_id)
+              : "/"
+          }
+        >
           <ArrowLeft size={16} />
           返回识别台
         </Link>
@@ -551,7 +577,8 @@ export default function ReviewPage() {
               {segments.map((s) => (
                 <option key={s.segment_id} value={s.segment_id}>
                   {s.asr_engine} · {s.start_time.toFixed(1)}–
-                  {s.end_time.toFixed(1)}s · {s.text.slice(0, 32)}
+                  {s.end_time.toFixed(1)}s ·{" "}
+                  {(s.corrected_text ?? s.text).slice(0, 32)}
                 </option>
               ))}
             </select>
@@ -611,7 +638,9 @@ export default function ReviewPage() {
                           s.segment_id === selectedId ? value : s,
                         ),
                       );
-                      setNotice("人工修订已保存并记录历史；事件分析未重算。");
+                      setNotice(
+                        "人工修订已保存并记录历史，事件分析已更新。不会训练或修改 ASR 模型。",
+                      );
                     })
                   }
                 >
@@ -792,8 +821,9 @@ export default function ReviewPage() {
         <aside className="panel">
           <div className="panel-title">
             <FileText size={18} />
-            <h2>修订记录与边界</h2>
+            <h2>修订后事件分析与记录</h2>
           </div>
+          <EventAnalysis events={events} finalCount={segment ? 1 : 0} />
           <p className="review-note">
             所有修订保留修改前后文本、录音时间范围和参考摘录快照。当前为本地演示操作记录，未接入登录认证，不能用于确认操作人员身份。
           </p>
@@ -828,7 +858,7 @@ export default function ReviewPage() {
             单卡适用场景不同，不能把演练话术直接声明为民航局标准。当前不自动检查复诵完整性、漏报或调度正确性。
           </div>
           <p className="review-note">
-            术语修订不会更新已有事件结论；旧事件仍基于原始转写。需要重新分析时应另行核实。
+            保存修订后自动重算事件分析，原文与修改历史保留。修订只影响当前片段，不训练识别模型；参考资料和术语映射仅用于生成人工确认的建议，不会自动替换其他录音。
           </p>
         </aside>
       </div>

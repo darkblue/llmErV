@@ -26,7 +26,12 @@ test("上传、真实时钟分片、暂停、继续、Final、修订与历史", 
     "非真实转写",
   );
   await page.getByLabel("人工修订", { exact: true }).fill("人工核实测试");
-  await page.getByText("实时字幕", { exact: false }).first().click();
+  await page
+    .getByRole("button", { name: "保存修订并更新分析", exact: true })
+    .click();
+  await expect(page.locator(".transcripts article > p")).toHaveText(
+    "人工核实测试",
+  );
   await expect(page.locator(".transcripts textarea")).toHaveValue(
     "人工核实测试",
   );

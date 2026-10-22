@@ -29,7 +29,7 @@ async def lifespan(app):
     yield
 
 
-app = FastAPI(title="llmErV", version="0.3.0", lifespan=lifespan)
+app = FastAPI(title="llmErV", version="0.3.1", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[os.getenv("FRONTEND_URL", "http://localhost:3000")],
@@ -127,8 +127,17 @@ def transcripts(id: str):
 
 
 @app.get("/events")
-def events():
-    return listing("event")
+def events(session_id: str | None = None):
+    # Derive from current text so older deployments' stale events are repaired
+    # on read, and removed/revised facts cannot remain in the sidebar.
+    return [
+        extract(item)
+        for item in sorted(
+            listing("transcript"),
+            key=lambda x: (x["start_time"], x["end_time"], x["segment_id"]),
+        )
+        if session_id is None or item["session_id"] == session_id
+    ]
 
 
 class Revision(BaseModel):

@@ -10,6 +10,7 @@ from fastapi import APIRouter, HTTPException, UploadFile, Query
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field, HttpUrl, model_validator
 from backend.models import DATA, save, listing
+from backend.events.extract import extract
 from .service import (
     document,
     segment,
@@ -308,4 +309,5 @@ def import_transcript(body: TranscriptInput):
         },
     )
     save("transcript", id, item)
+    save("event", id + ":event", extract(item))
     return item

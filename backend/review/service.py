@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 from fastapi import HTTPException
 from sqlalchemy import update
 from backend.models import DB, Record, get, listing
+from backend.events.extract import extract
 
 # Generic vocabulary only. Operational actions, numbers, names and locations are
 # deliberately outside the rule vocabulary. Extending this needs code review.
@@ -272,6 +273,8 @@ def commit_revision(id, expected_hash, text, method, evidence=None):
         )
         if updated.rowcount != 1:
             raise HTTPException(409, "STALE_TRANSCRIPT_REVIEW_AGAIN")
+        # Transcript, derived event and audit are committed together.
+        db.merge(Record(id=id + ":event", kind="event", payload=extract(payload)))
         audit_id = str(uuid.uuid4())
         db.add(
             Record(
@@ -291,7 +294,7 @@ def commit_revision(id, expected_hash, text, method, evidence=None):
                     "created_at": datetime.now(timezone.utc).isoformat(),
                     "version": payload["review_version"],
                     "actor": "local_operator_unverified_identity",
-                    "event_reanalysis": "not_performed",
+                    "event_reanalysis": "completed",
                 },
             )
         )
