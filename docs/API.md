@@ -37,3 +37,12 @@ WS /ws/recognize:
 - Vosk 可在每个语句结束时发送 Final+event，而不必等整个文件停止。后续 Partial 使用新的 segment_id；stop/finish 只提交剩余文本，不重复已保存 Final。Final 使用词时间戳和模型可用置信度。
 - 新错误 ASR_DEPENDENCY_MISSING、ASR_MODEL_MISSING、ASR_MODEL_LOAD_FAILED、ASR_BUSY。默认最多一个真实识别会话。
 - `original_text` 保留模型原始分词空格；显示 text 仅移除中文词间空格，corrected_text 供独立人工修订。
+
+## 数字专项 v0.4
+- `GET /asr/radio-digits`: 固定报读映射、来源条款及机制说明。1幺、2两、7拐、0洞，资料为用户提供的 2003 版，现行有效性未核验。
+- `GET /asr/capabilities` 增加 recognition_modes；Vosk 支持 general / radio_digits，其余仅 general。native_hotwords 仍为 false，专项使用受限语法而非通用热词加权。
+- WS start 可选 `{recognition_mode:"radio_digits",audio_offset:秒数}`；默认 general/0。浏览器只播放并发送选定数字短句的 PCM，最多30秒；服务端检查 offset 为录音内有限非负数，限制输入到原录音结尾及30秒。General 不接受非零 offset。
+- ready/Final/session 保存 recognition_mode，Final 的 start_time/end_time 是原录音绝对时间。radio_digits 包含未核实 digits/readings、原始词、来源、机制。含未知词不生成完整候选；不替换 text/original_text。Partial 不提供数字定稿。
+- `GET /transcripts/{id}/radio-digits` 返回 base_hash 和当前候选；Mock 不提供。普通模式仅映射完整且明确的报读数字串，专项允许受限解码器的同音声学词条，不在普通语句中使用同音替换。
+- `POST /transcripts/{id}/radio-digits/apply` `{base_hash,acknowledge_audio_review:true}`：重新计算候选，验证版本、回听确认，写入 corrected_text、审计（radio_digit_review）并重算事件；前导零保留。原始文本不变，不从数字串猜测航班或跑道。
+- 错误：ASR_MODE_UNSUPPORTED、RADIO_DIGIT_VOCABULARY_UNSUPPORTED、INVALID_AUDIO_OFFSET（WS）；NO_RADIO_DIGIT_CANDIDATE（422）；复用回听确认和版本冲突错误。旧后端未确认专项模式时，客户端终止会话。

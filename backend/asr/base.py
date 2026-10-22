@@ -10,6 +10,7 @@ class ASRResult:
     end_time: float | None = None
     confidence: float | None = None
     raw_text: str | None = None
+    radio_digits: dict | None = None
 
 
 class ASRAdapter(ABC):

@@ -37,6 +37,8 @@ type Segment = {
   end_time: number;
   confidence?: number | null;
   asr_engine: string;
+  recognition_mode?: string;
+  radio_digits?: { digits: string; readings: string } | null;
 };
 export default function Home() {
   const [files, setFiles] = useState<AudioFile[]>([]),
@@ -63,6 +65,9 @@ export default function Home() {
       { id: string; status: string; audio_time: number }[]
     >([]),
     [chunkMs, setChunkMs] = useState(200),
+    [recognitionMode, setRecognitionMode] = useState("general"),
+    [radioStart, setRadioStart] = useState(0),
+    [radioEnd, setRadioEnd] = useState(3),
     [busy, setBusy] = useState(false);
   const ws = useRef<WebSocket | null>(null),
     ctx = useRef<AudioContext | null>(null),
@@ -77,6 +82,11 @@ export default function Home() {
     statusRef = useRef("idle"),
     hasFinal = useRef(false),
     sessionId = useRef("");
+  const audioOffset = useRef(0);
+  useEffect(() => {
+    setRadioStart(0);
+    setRadioEnd(Math.min(3, selected?.duration || 3));
+  }, [selected?.id]);
   async function read<T>(path: string): Promise<T> {
     const r = await fetch(API + path);
     if (!r.ok) throw Error("读取失败，请检查后端连接");
@@ -164,6 +174,20 @@ export default function Home() {
   }
   async function start() {
     if (!selected) return;
+    const offset = recognitionMode === "radio_digits" ? radioStart : 0;
+    if (
+      recognitionMode === "radio_digits" &&
+      (!Number.isFinite(offset) ||
+        !Number.isFinite(radioEnd) ||
+        offset < 0 ||
+        radioEnd <= offset ||
+        radioEnd > selected.duration ||
+        radioEnd - offset > 30)
+    ) {
+      setError("请选择录音内 0–30 秒长度的数字短句范围。");
+      return;
+    }
+    audioOffset.current = offset;
     cleanup();
     const previousSocket = ws.current;
     ws.current = null;
@@ -173,7 +197,7 @@ export default function Home() {
     setPartial("");
     setEvents([]);
     sessionId.current = "";
-    setProgress(0);
+    setProgress(offset);
     updateStatus("connecting");
     sent.current = 0;
     sending.current = false;
@@ -184,21 +208,45 @@ export default function Home() {
       await context.resume();
       const response = await fetch(API + "/audio/" + selected.id + "/content");
       if (!response.ok) throw Error("音频读取失败");
-      const buffer = await context.decodeAudioData(
+      const fullBuffer = await context.decodeAudioData(
         await response.arrayBuffer(),
       );
+      let buffer = fullBuffer;
+      if (recognitionMode === "radio_digits") {
+        const from = Math.round(offset * 16000),
+          to = Math.min(fullBuffer.length, Math.round(radioEnd * 16000));
+        buffer = context.createBuffer(1, to - from, 16000);
+        buffer.copyToChannel(fullBuffer.getChannelData(0).slice(from, to), 0);
+      }
       pcm.current = buffer.getChannelData(0);
       const socket = new WebSocket(
         API.replace(/^http/, "ws") + "/ws/recognize",
       );
       ws.current = socket;
       socket.onopen = () =>
-        socket.send(JSON.stringify({ type: "start", source_id: selected.id }));
+        socket.send(
+          JSON.stringify({
+            type: "start",
+            source_id: selected.id,
+            recognition_mode: recognitionMode,
+            audio_offset: offset,
+          }),
+        );
       socket.onmessage = async (e) => {
         if (ws.current !== socket) return;
         const m = JSON.parse(e.data);
         if (m.type === "model_status") setMode("模型加载中 · " + m.asr_engine);
         if (m.type === "ready") {
+          if (
+            recognitionMode === "radio_digits" &&
+            m.recognition_mode !== "radio_digits"
+          ) {
+            setError("后端版本尚未支持数字专项，请先更新后端。");
+            cleanup();
+            updateStatus("error");
+            socket.close();
+            return;
+          }
           sessionId.current = m.session_id;
           setMode(
             m.asr_engine === "mock"
@@ -250,6 +298,10 @@ export default function Home() {
         if (m.type === "error") {
           const messages: Record<string, string> = {
             ASR_BUSY: "真实识别会话已占用，请稍后重试。",
+            ASR_MODE_UNSUPPORTED: "数字专项模式需要新版 Vosk 后端。",
+            RADIO_DIGIT_VOCABULARY_UNSUPPORTED:
+              "当前模型缺少数字声学词条，请使用受支持的中文模型。",
+            INVALID_AUDIO_OFFSET: "数字片段时间范围无效，请重新选择。",
             ASR_MODEL_MISSING: "中文模型文件未安装，请检查 ASR_MODEL 配置。",
             ASR_MODEL_LOAD_FAILED:
               "模型加载失败，请检查 Render 日志及实例内存。",
@@ -316,7 +368,7 @@ export default function Home() {
     lastSent.current = performance.now();
     sending.current = true;
     sent.current = end;
-    setProgress(end / 16000);
+    setProgress(audioOffset.current + end / 16000);
     setLevel(Math.sqrt(sum / part.length));
   }
   async function pause() {
@@ -638,6 +690,57 @@ export default function Home() {
               </Button>
             </div>
             <label className="chunk-label">
+              识别策略{" "}
+              <select
+                aria-label="识别策略"
+                disabled={locked}
+                value={recognitionMode}
+                onChange={(e) => setRecognitionMode(e.target.value)}
+              >
+                <option value="general">常规通话</option>
+                <option
+                  value="radio_digits"
+                  disabled={asrInfo?.provider !== "vosk"}
+                >
+                  数字报读专项（仅数字短句）
+                </option>
+              </select>
+            </label>
+            {recognitionMode === "radio_digits" && (
+              <p className="review-note">
+                数字受限解码：幺 / 两 / 拐 /
+                洞。请仅输入逐位数字短句；完整通话使用常规策略。候选须回听确认，不是模型训练或通用热词加权。
+              </p>
+            )}
+            {recognitionMode === "radio_digits" && (
+              <div className="time-range">
+                <label>
+                  数字片段开始秒
+                  <input
+                    aria-label="数字片段开始秒"
+                    type="number"
+                    min={0}
+                    step={0.1}
+                    disabled={locked}
+                    value={radioStart}
+                    onChange={(e) => setRadioStart(Number(e.target.value))}
+                  />
+                </label>
+                <label>
+                  数字片段结束秒
+                  <input
+                    aria-label="数字片段结束秒"
+                    type="number"
+                    min={0}
+                    step={0.1}
+                    disabled={locked}
+                    value={radioEnd}
+                    onChange={(e) => setRadioEnd(Number(e.target.value))}
+                  />
+                </label>
+              </div>
+            )}
+            <label className="chunk-label">
               分片大小{" "}
               <select
                 aria-label="分片大小"
@@ -672,6 +775,15 @@ export default function Home() {
                   <span className="final-tag">FINAL · {s.asr_engine}</span>
                 </div>
                 <p>{s.corrected_text ?? s.text}</p>
+                {s.recognition_mode === "radio_digits" && (
+                  <small>数字专项 · 受限词表 · 原始模型输出保留</small>
+                )}
+                {s.radio_digits && (s.corrected_text ?? s.text) === s.text && (
+                  <p className="review-note">
+                    数字候选：{s.radio_digits.digits}（{s.radio_digits.readings}
+                    ）· 请进入修订工作台逐位回听确认
+                  </p>
+                )}
                 {s.confidence != null && (
                   <small>
                     词级置信度均值 {(s.confidence * 100).toFixed(0)}

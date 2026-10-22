@@ -25,13 +25,8 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
       - name: Install and verify media and PDF tools
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends ffmpeg poppler-utils
-          ffmpeg -version
-          ffprobe -version
-          pdfinfo -v
-          pdftotext -v
+        timeout-minutes: 5
+        run: bash scripts/ci_media_tools.sh 2>&1 | tee /tmp/media-tools.log
       - name: Install backend dependencies
         run: pip install -r backend/requirements-dev.txt
       - name: Backend tests
@@ -85,6 +80,7 @@ jobs:
           name: ci-failure-${{ github.event_name }}-${{ github.run_id }}
           path: |
             /tmp/backend-tests.xml
+            /tmp/media-tools.log
             /tmp/backend.log
             /tmp/browser.log
             /tmp/frontend-install.log

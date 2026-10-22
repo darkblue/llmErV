@@ -42,6 +42,9 @@ class VoskStreaming(ASRAdapter):
     # Arbitrary vocabulary/grammar restriction is not native hotword boosting.
     native_hotwords = False
 
+    def __init__(self, radio_digits=False):
+        self.radio_digits = radio_digits
+
     async def start_session(self, hotwords):
         self.recognizer = None
         self.result = None
@@ -53,10 +56,20 @@ class VoskStreaming(ASRAdapter):
             from vosk import KaldiRecognizer
 
             model = await asyncio.to_thread(load_model)
-            self.recognizer = KaldiRecognizer(model, 16000)
+            if self.radio_digits:
+                from .radio_digits import grammar
+
+                self.recognizer = KaldiRecognizer(
+                    model, 16000, json.dumps(grammar(model), ensure_ascii=False)
+                )
+            else:
+                self.recognizer = KaldiRecognizer(model, 16000)
             self.recognizer.SetWords(True)
             self.samples = 0
             self.segment_start = 0.0
+        except ASRError:
+            await self.end_session()
+            raise
         except ModuleNotFoundError as e:
             await self.end_session()
             raise ASRError("ASR_DEPENDENCY_MISSING") from e
@@ -87,6 +100,10 @@ class VoskStreaming(ASRAdapter):
             confidence,
             raw_text,
         )
+        if final:
+            from .radio_digits import candidate
+
+            value.radio_digits = candidate(raw_text, self.radio_digits)
         if final:
             self.segment_start = end
         return value

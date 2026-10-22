@@ -11,8 +11,14 @@ def provider():
     return os.getenv("ASR_PROVIDER", "mock").strip().lower()
 
 
-def create_adapter():
+def create_adapter(recognition_mode="general"):
     name = provider()
+    if recognition_mode not in ("general", "radio_digits") or (
+        recognition_mode == "radio_digits" and name != "vosk"
+    ):
+        from .base import ASRError
+
+        raise ASRError("ASR_MODE_UNSUPPORTED")
     if name == "mock":
         from .mock import MockASR
 
@@ -20,7 +26,7 @@ def create_adapter():
     if name == "vosk":
         from .vosk_streaming import VoskStreaming
 
-        return VoskStreaming()
+        return VoskStreaming(radio_digits=recognition_mode == "radio_digits")
     if name == "funasr":
         from .funasr import FunASRStreaming
 
@@ -71,6 +77,9 @@ def capabilities():
         "sample_rate": 16000,
         "supports_partial": True,
         "supports_endpoint_final": name == "vosk",
+        "recognition_modes": ["general", "radio_digits"]
+        if name == "vosk"
+        else ["general"],
         "model": os.getenv("ASR_MODEL")
         or ("vosk-model-small-cn-0.22" if name == "vosk" else None),
     }

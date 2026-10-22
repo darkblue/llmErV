@@ -1,4 +1,6 @@
 # Delivery status
+- [x] Opt-in, bounded radio-digit streaming grammar and audio-time-linked human confirmation; supplied standard profile for 幺/两/拐/洞
+- [ ] Representative human radio-digit corpus and held-out digit error rate (synthetic checks are not accuracy evidence)
 - [x] Sidebar keeps session evidence across empty segments, loads history and follows manual/reference corrections with versioned evidence; revision UI explicitly saves and previews updated analysis
 - [x] P0 upload, metadata, playback, Chinese console
 - [x] P1 real-time PCM transport, Mock, lifecycle, Partial/Final, isolation

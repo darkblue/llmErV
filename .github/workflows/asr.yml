@@ -18,16 +18,26 @@ jobs:
         with:
           python-version: '3.12'
       - name: Install integration prerequisites
+        timeout-minutes: 5
         run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends ffmpeg
-          pip install -r backend/requirements-dev.txt
+          {
+            bash scripts/ci_media_tools.sh --audio-only
+            pip install --retries 1 --timeout 30 -r backend/requirements-dev.txt
+            pip install --retries 1 --timeout 30 onnxruntime==1.22.1
+          } 2>&1 | tee /tmp/asr-install.log
       - uses: actions/cache@v4
         with:
           path: /tmp/asr-models
           key: vosk-cn-${{ runner.os }}-${{ hashFiles('backend/asr/model.json') }}
       - name: Verify and install pinned official Chinese model
         run: python scripts/provision_vosk_model.py --destination /tmp/asr-models
+      - uses: actions/cache@v4
+        with:
+          path: /tmp/radio-tts-models
+          key: radio-tts-${{ runner.os }}-${{ hashFiles('tests/fixtures/radio-tts-model.json') }}
+      - name: Generate licensed self-authored radio-digit speech
+        timeout-minutes: 5
+        run: python scripts/generate_radio_fixture.py --model-dir /tmp/radio-tts-models --output /tmp/radio-source.wav 2>&1 | tee /tmp/radio-fixture-generation.log
       - name: Verify upload, incremental inference and history on licensed Mandarin
         env:
           ASR_MODEL: /tmp/asr-models/vosk-model-small-cn-0.22
@@ -35,6 +45,7 @@ jobs:
           DATA_DIR: /tmp/llmerv-real-asr-data
         run: |
           PYTHONPATH=. python scripts/asr_smoke.py 2>&1 | tee /tmp/real-asr-smoke.log
+          RADIO_DIGIT_SOURCE=/tmp/radio-source.wav RADIO_DIGIT_FIXTURE_OUT=/tmp/radio-digits.wav PYTHONPATH=. python scripts/radio_digits_smoke.py 2>&1 | tee /tmp/radio-digits-smoke.log
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -51,6 +62,7 @@ jobs:
           ASR_MODEL: /tmp/asr-models/vosk-model-small-cn-0.22
           ASR_PROVIDER: vosk
           DATA_DIR: /tmp/llmerv-real-browser-data
+          RADIO_DIGIT_FIXTURE: /tmp/radio-digits.wav
         run: |
           uvicorn backend.main:app --host 0.0.0.0 --port 8000 > /tmp/backend.log 2>&1 &
           llmerv_asr_pid=$!
@@ -68,6 +80,11 @@ jobs:
           name: real-asr-report-${{ github.event_name }}
           path: |
             /tmp/real-asr-smoke.log
+            /tmp/radio-digits-smoke.log
+            /tmp/radio-fixture-generation.log
+            /tmp/asr-install.log
+            /tmp/radio-source.wav
+            /tmp/radio-digits.wav
             /tmp/backend.log
             /tmp/browser.log
             frontend/test-results/

@@ -17,6 +17,7 @@ from .service import (
     propose,
     commit_revision,
     current_text,
+    fingerprint,
     validate_pair,
     TERMS,
 )
@@ -25,6 +26,51 @@ router = APIRouter()
 MAX_PDF_BYTES = 15 * 1024 * 1024
 REFERENCE_DIR = DATA / "references"
 REFERENCE_DIR.mkdir(exist_ok=True)
+
+
+@router.get("/transcripts/{id}/radio-digits")
+def radio_digit_review(id: str):
+    from backend.asr.radio_digits import candidate
+
+    item = segment(id)
+    value = (
+        None
+        if item["asr_engine"] == "mock"
+        else candidate(
+            current_text(item), item.get("recognition_mode") == "radio_digits"
+        )
+    )
+    return {"base_hash": fingerprint(current_text(item)), "candidate": value}
+
+
+class DigitApproval(BaseModel):
+    base_hash: str = Field(min_length=64, max_length=64)
+    acknowledge_audio_review: bool = False
+
+
+@router.post("/transcripts/{id}/radio-digits/apply")
+def apply_radio_digits(id: str, body: DigitApproval):
+    item = segment(id)
+    result = radio_digit_review(id)
+    if result["base_hash"] != body.base_hash:
+        raise HTTPException(409, "STALE_TRANSCRIPT_REVIEW_AGAIN")
+    if not body.acknowledge_audio_review:
+        raise HTTPException(422, "AUDIO_REVIEW_ACK_REQUIRED")
+    value = result["candidate"]
+    if value is None:
+        raise HTTPException(422, "NO_RADIO_DIGIT_CANDIDATE")
+    evidence = [
+        {
+            "id": "caac_radio_digits",
+            "before": current_text(item),
+            "after": value["digits"],
+            "references": [],
+            "digit_profile": value,
+        }
+    ]
+    return commit_revision(
+        id, body.base_hash, value["digits"], "radio_digit_review", evidence
+    )
 
 
 @router.get("/references")
