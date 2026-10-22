@@ -10,7 +10,12 @@ def annotate(title, text):
 
 
 if __name__ == "__main__":
-    for name in ("backend.log", "browser.log"):
+    for name in (
+        "backend.log",
+        "browser.log",
+        "frontend-install.log",
+        "frontend-build.log",
+    ):
         path = Path("/tmp") / name
         if path.is_file():
             annotate(

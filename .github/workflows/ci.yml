@@ -9,6 +9,8 @@ jobs:
   test:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
+    env:
+      NEXT_TELEMETRY_DISABLED: 1
     defaults:
       run:
         shell: bash
@@ -34,8 +36,17 @@ jobs:
         run: pip install -r backend/requirements-dev.txt
       - name: Backend tests
         run: python -m pytest -q --junitxml=/tmp/backend-tests.xml
-      - name: Frontend install, build and typecheck
-        run: npm ci && npm run build && npm run typecheck
+      - name: Install frontend dependencies
+        timeout-minutes: 5
+        run: npm ci --fetch-retries=1 --fetch-timeout=30000 2>&1 | tee /tmp/frontend-install.log
+        working-directory: frontend
+      - name: Frontend production build
+        timeout-minutes: 5
+        run: npm run build 2>&1 | tee /tmp/frontend-build.log
+        working-directory: frontend
+      - name: Frontend typecheck
+        timeout-minutes: 2
+        run: npm run typecheck
         working-directory: frontend
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
@@ -72,6 +83,8 @@ jobs:
             /tmp/backend-tests.xml
             /tmp/backend.log
             /tmp/browser.log
+            /tmp/frontend-install.log
+            /tmp/frontend-build.log
             /tmp/compose.log
             frontend/test-results/
           if-no-files-found: ignore
