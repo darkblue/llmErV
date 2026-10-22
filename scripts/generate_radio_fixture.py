@@ -47,6 +47,8 @@ def generate(model_dir, output):
                 lexicon=str(model_dir / "lexicon.txt"),
                 tokens=str(model_dir / "tokens.txt"),
                 dict_dir=str(model_dir / "dict"),
+                noise_scale=0.0,
+                noise_scale_w=0.0,
             ),
             num_threads=1,
             provider="cpu",
