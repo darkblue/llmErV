@@ -46,3 +46,6 @@ scripts/  fixture generator
 Configuration: `.env.example` lists ASR_PROVIDER, ASR_MODEL, LLM_PROVIDER, LLM_API_KEY, DATABASE_URL, FRONTEND_URL, BACKEND_URL, NEXT_PUBLIC_BACKEND_URL. Uvicorn does not implicitly load `.env`: export settings or pass `--env-file .env`. Rules are currently the only event provider; setting LLM_PROVIDER does not enable an LLM. Backend URL in browser is NEXT_PUBLIC_BACKEND_URL; BACKEND_URL is reserved for server integrations. Default database/audio under `data/`; SQLAlchemy allows PostgreSQL via `postgresql+psycopg://...`.
 
 See [Architecture](ARCHITECTURE.md), [requirements](REQUIREMENTS.md), [API](docs/API.md), [deployment](docs/DEPLOYMENT.md), [remaining work](TASKS.md). This demo has no authentication; use synthetic/non-sensitive data in a controlled environment.
+
+## 对话修订工作台
+`/review` 支持导入规范/单卡 PDF、按页核实摘录、录音时间段回听、有限术语建议、人工确认应用及修订审计。保留原文，不按单卡补写关键事实，不把 Mock 当作真实对话。支持带音轨 MP4 输入和人工原文导入。详见 [使用与参考条款](docs/VOICE_REVIEW.md)。本地运行额外需要 Poppler 的 `pdfinfo` / `pdftotext`（Docker 已包含 `poppler-utils`）。

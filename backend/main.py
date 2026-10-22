@@ -12,6 +12,13 @@ from backend.models import DATA, save, get, listing, remove
 from backend.audio.codec import decode
 from backend.asr.mock import MockASR
 from backend.events.extract import extract
+from backend.review.api import router as review_router
+from backend.review.service import (
+    commit_revision,
+    current_text,
+    fingerprint,
+    segment as review_segment,
+)
 
 app = FastAPI(title="llmErV", version="0.1.0")
 app.add_middleware(
@@ -20,6 +27,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.include_router(review_router)
+
 PROVIDER = os.getenv("ASR_PROVIDER", "mock")
 MAX_BYTES = 50 * 1024 * 1024
 
@@ -38,7 +47,7 @@ def health():
 @app.post("/audio", status_code=201)
 async def upload(file: UploadFile):
     suffix = Path(file.filename or "").suffix.lower()
-    if suffix not in {".wav", ".mp3", ".flac", ".m4a", ".ogg"}:
+    if suffix not in {".wav", ".mp3", ".flac", ".m4a", ".ogg", ".mp4"}:
         raise HTTPException(415, "UNSUPPORTED_FORMAT")
     id = str(uuid.uuid4())
     raw, wav = DATA / f"{id}.input{suffix}", DATA / f"{id}.wav"
@@ -106,13 +115,10 @@ class Revision(BaseModel):
 
 @app.patch("/transcripts/{id}")
 def revise(id: str, body: Revision):
-    item = get(id)
-    if not item or "segment_id" not in item:
-        raise HTTPException(404, "SEGMENT_NOT_FOUND")
-    item["corrected_text"] = body.text
-    item["human_edited"] = True
-    save("transcript", id, item)
-    return item
+    item = review_segment(id)
+    return commit_revision(
+        id, fingerprint(current_text(item)), body.text, "manual_edit"
+    )
 
 
 class Words(BaseModel):

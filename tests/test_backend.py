@@ -1,11 +1,7 @@
-import os
-import tempfile
 import wave
 from pathlib import Path
 import pytest
 
-os.environ["DATA_DIR"] = tempfile.mkdtemp(prefix="llmerv-test-")
-os.environ["ASR_PROVIDER"] = "mock"
 from fastapi.testclient import TestClient
 from backend.main import app
 from backend.asr.mock import MockASR

@@ -9,3 +9,12 @@
 - [x] P5 backend 16 tests, browser E2E, production build/typecheck, Docker builds/health, deployment documentation
 - [ ] Public preview / authenticated production service
 - [ ] Real hardware, diarization, VAD segments, reconnection resume, speed control, normalized DB migrations
+
+## Reference dialogue review
+- [x] Official source read: user-supplied MH/T 4014-2003; current legal validity unverified
+- [x] Reference PDF import, scans/manual excerpts, page evidence and local verification
+- [x] Audio replay, bounded term candidates, approval, immutable originals, stale-review protection, audit
+- [x] AOC vs ATC context-sensitive human checklist (not automated compliance audit)
+- [x] MP4 audio-track import and explicitly labeled manual transcript import
+- [ ] User exercise actual speech validation: attachment transfer exceeds 32MiB; needs extracted audio/smaller parts
+- [ ] Broad phonetic ASR correction, authenticated operator audit, cross-turn readback analysis and automated OCR

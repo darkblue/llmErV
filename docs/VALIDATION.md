@@ -9,3 +9,11 @@
 - Git feature branch pushed successfully. Automatic PR creation failed: GitHub GraphQL API returned Forbidden; existing Git HTTPS proxy authentication supports push. No main merge or production deployment performed.
 - Known warnings: Starlette TestClient httpx deprecation; non-root Docker pytest cache cannot write /app/.pytest_cache (test results unaffected).
 - Tests use self-generated tones only, no operational communications.
+
+# Dialogue review validation — 2026-10-22
+- Source PDF from user-supplied CAAC URL downloaded after required network domain became available. Identified MH/T 4014-2003, 71 PDF pages; current legal validity not verified. Substantive clause citations checked against physical PDF pages: 3.1→11, 3.2/3.3/3.4.1→12, 3.9→24. Table of contents deliberately excluded from clause matching.
+- User's four-page scanned card visually inspected and privately imported. Only limited printed excerpts recorded, left unverified for operator confirmation; no personal contact details or uncertain handwritten flight/location values embedded in source or correction rules.
+- Backend: **26 passed** locally and **26 passed in Docker**. Added PDF validation/extraction, page boundaries, source/audio acknowledgments, preserved facts, immutable originals, custom-rule safety, reference revocation, stale/concurrent edits, original UI manual-edit audit, context-sensitive checklist, manual import and MP4 audio track checks.
+- Browser E2E: **3 passed** against containerized production services. New case authors its own PDF and uses synthetic tone; exercises import, source verification, manual text provenance, playback, per-candidate acceptance, audio acknowledgment, original preservation and audit.
+- TypeScript, Next.js production build and Ruff checks passed. Both Docker images built; both services healthy. Private reference files and database records survived container replacement.
+- Remaining: actual exercise MP4 could not be downloaded because the attachment transfer tool caps files at 32MiB. No actual exercise speech recognition, dialogue correction acceptance or accuracy evaluation has been performed. A smaller/extracted audio attachment is required. The synthetic manual text in tests is test input, not speech transcribed from the tone.
