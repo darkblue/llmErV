@@ -49,3 +49,6 @@ See [Architecture](ARCHITECTURE.md), [requirements](REQUIREMENTS.md), [API](docs
 
 ## 对话修订工作台
 `/review` 支持导入规范/单卡 PDF、按页核实摘录、录音时间段回听、有限术语建议、人工确认应用及修订审计。保留原文，不按单卡补写关键事实，不把 Mock 当作真实对话。支持带音轨 MP4 输入和人工原文导入。详见 [使用与参考条款](docs/VOICE_REVIEW.md)。本地运行额外需要 Poppler 的 `pdfinfo` / `pdftotext`（Docker 已包含 `poppler-utils`）。
+
+## 启用真实中文识别（无需密钥）
+后端镜像现在打包经过 SHA256 校验的 Vosk 小型中文模型。在 Render 将 `ASR_PROVIDER` 改为 `vosk`，`ASR_MODEL` 设为 `/opt/llmerv-models/vosk-model-small-cn-0.22`，`ASR_MAX_SESSIONS=1`，重新部署。检查 `/health` 的 `asr.ready=true` 后即可真实流式转写。详细步骤、性能边界与公开许可语音样例见 [ASR.md](docs/ASR.md)。此处无需改变 Vercel 的后端网址。

@@ -66,8 +66,12 @@ jobs:
         run: docker compose build
       - name: Container backend tests
         run: docker compose --profile test run --rm test
-      - name: Container health checks
-        run: docker compose up -d --no-build --wait --wait-timeout 90
+      - name: Container health checks with real Chinese model
+        env:
+          ASR_PROVIDER: vosk
+        run: |
+          docker compose up -d --no-build --wait --wait-timeout 90
+          docker compose exec -T backend python -c "import json,urllib.request; data=json.load(urllib.request.urlopen('http://localhost:8000/health')); print(data); assert data['asr_provider']=='vosk' and data['asr']['ready']"
       - name: Collect container logs
         if: always()
         run: docker compose logs --no-color > /tmp/compose.log 2>&1

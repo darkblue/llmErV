@@ -7,7 +7,7 @@ RUN pip install --no-cache-dir -r backend/requirements-dev.txt
 COPY backend/asr/model.json /tmp/vosk-model.json
 COPY scripts/provision_vosk_model.py /tmp/provision_vosk_model.py
 RUN python /tmp/provision_vosk_model.py --manifest /tmp/vosk-model.json --destination /opt/llmerv-models
-ENV VOSK_MODEL_PATH=/opt/llmerv-models/vosk-model-small-cn-0.22
+ENV VOSK_MODEL_PATH=/opt/llmerv-models/vosk-model-small-cn-0.22 OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1
 COPY --chown=1000:1000 backend backend
 COPY --chown=1000:1000 tests tests
 RUN useradd --uid 1000 --create-home app && mkdir /app/data && chown app:app /app/data

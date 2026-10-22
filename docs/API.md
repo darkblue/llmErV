@@ -29,3 +29,11 @@ WS /ws/recognize:
 - `GET /transcripts/{id}/revisions` returns audit including manual PATCH edits from original UI. No authenticated operator identity yet. Event analysis remains based on original transcript; no silent reanalysis.
 - Errors: REFERENCE_NOT_FOUND / FINAL_SEGMENT_NOT_FOUND (404); REFERENCE_TOO_LARGE (413); PDF_REQUIRED (415); INVALID_PDF_OR_EXTRACTION_FAILED, UNSAFE_RULE_USE_MANUAL_REVIEW, RULE_NOT_SUPPORTED_BY_EXCERPT, SOURCE_REVIEW_ACK_REQUIRED, AUDIO_REVIEW_ACK_REQUIRED, REFERENCE_REVIEW_REQUIRED, INVALID_SUGGESTION, OVERLAPPING_SUGGESTIONS, TRANSCRIPT_OUTSIDE_AUDIO (422); STALE_TRANSCRIPT_REVIEW_AGAIN (409).
 - Audio extension allowlist now also accepts `.mp4`; FFmpeg extracts audio only. Existing upload limits apply.
+
+## ASR v0.3
+- `GET /health` 增加 `asr` 能力与 readiness，区分模型未就绪和 HTTP 服务可用。
+- `GET /asr/capabilities` 返回 provider/ready/status/error_code/model/sample_rate/supports_partial/supports_endpoint_final/native_hotwords。
+- WS 可先发送 `model_status`（loading），再发送 ready；真实模型未成功初始化不发送 ready，不回退 Mock。
+- Vosk 可在每个语句结束时发送 Final+event，而不必等整个文件停止。后续 Partial 使用新的 segment_id；stop/finish 只提交剩余文本，不重复已保存 Final。Final 使用词时间戳和模型可用置信度。
+- 新错误 ASR_DEPENDENCY_MISSING、ASR_MODEL_MISSING、ASR_MODEL_LOAD_FAILED、ASR_BUSY。默认最多一个真实识别会话。
+- `original_text` 保留模型原始分词空格；显示 text 仅移除中文词间空格，corrected_text 供独立人工修订。

@@ -17,6 +17,10 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends ffmpeg
           pip install -r backend/requirements-dev.txt
+      - uses: actions/cache@v4
+        with:
+          path: /tmp/asr-models
+          key: vosk-cn-${{ runner.os }}-${{ hashFiles('backend/asr/model.json') }}
       - name: Verify and install pinned official Chinese model
         run: python scripts/provision_vosk_model.py --destination /tmp/asr-models
       - name: Verify upload, incremental inference and history on licensed Mandarin
@@ -26,7 +30,6 @@ jobs:
           DATA_DIR: /tmp/llmerv-real-asr-data
         run: |
           PYTHONPATH=. python scripts/asr_smoke.py 2>&1 | tee /tmp/real-asr-smoke.log
-          echo "::notice title=Actual model smoke result::$(tail -1 /tmp/real-asr-smoke.log)"
       - name: Retain inference report
         if: always()
         uses: actions/upload-artifact@v4

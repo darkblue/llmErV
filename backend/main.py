@@ -120,7 +120,10 @@ def sessions():
 
 @app.get("/sessions/{id}/transcripts")
 def transcripts(id: str):
-    return [x for x in listing("transcript") if x["session_id"] == id]
+    return sorted(
+        [x for x in listing("transcript") if x["session_id"] == id],
+        key=lambda x: (x["start_time"], x["end_time"], x["segment_id"]),
+    )
 
 
 @app.get("/events")

@@ -140,7 +140,9 @@ export default function Home() {
   async function start() {
     if (!selected) return;
     cleanup();
-    ws.current?.close();
+    const previousSocket = ws.current;
+    ws.current = null;
+    previousSocket?.close();
     setError("");
     setSegments([]);
     setPartial("");
@@ -167,6 +169,7 @@ export default function Home() {
       socket.onopen = () =>
         socket.send(JSON.stringify({ type: "start", source_id: selected.id }));
       socket.onmessage = async (e) => {
+        if (ws.current !== socket) return;
         const m = JSON.parse(e.data);
         if (m.type === "model_status") setMode("模型加载中 · " + m.asr_engine);
         if (m.type === "ready") {
@@ -226,14 +229,17 @@ export default function Home() {
           cleanup();
           updateStatus("error");
           socket.close();
+          refreshASR();
         }
       };
       socket.onerror = () => {
+        if (ws.current !== socket) return;
         setError("WebSocket 连接失败");
         cleanup();
         updateStatus("error");
       };
       socket.onclose = () => {
+        if (ws.current !== socket) return;
         if (["running", "paused", "connecting"].includes(statusRef.current)) {
           cleanup();
           updateStatus("disconnected");
