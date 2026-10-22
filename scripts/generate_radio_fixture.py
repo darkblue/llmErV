@@ -84,8 +84,19 @@ def generate(model_dir, output):
     )
     clips = []
     metrics = []
-    for reading in readings:
-        phones, tones = lexicon[reading]
+    for reading in [manifest["text"]]:
+        phones, tones = [], []
+        punctuation = {"，": ",", "。": "."}
+        for char in reading:
+            if char in lexicon:
+                word_phones, word_tones = lexicon[char]
+                phones.extend(word_phones)
+                tones.extend(word_tones)
+            elif char in punctuation:
+                phones.append(tokens[punctuation[char]])
+                tones.append(0)
+            else:
+                raise ValueError("Unexpected character in authored radio fixture")
         if int(metadata["add_blank"]):
             padded_phones = [0] * (2 * len(phones) + 1)
             padded_tones = [0] * (2 * len(tones) + 1)
