@@ -1,0 +1,33 @@
+services:
+  backend:
+    image: llmerv-backend
+    build:
+      context: .
+      dockerfile: docker/backend.Dockerfile
+    ports: ["8000:8000"]
+    environment:
+      ASR_PROVIDER: ${ASR_PROVIDER:-mock}
+      ASR_MODEL: ${ASR_MODEL:-paraformer-zh-streaming}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+      LLM_PROVIDER: rules
+    volumes: ["audio-data:/app/data"]
+    restart: unless-stopped
+  frontend:
+    build:
+      context: .
+      dockerfile: docker/frontend.Dockerfile
+      args:
+        NEXT_PUBLIC_BACKEND_URL: ${NEXT_PUBLIC_BACKEND_URL:-http://localhost:8000}
+    ports: ["3000:3000"]
+    depends_on:
+      backend:
+        condition: service_healthy
+  test:
+    image: llmerv-backend
+    profiles: ["test"]
+    command: ["python", "-m", "pytest", "-q", "tests"]
+    environment:
+      ASR_PROVIDER: mock
+      DATA_DIR: /tmp/llmerv-tests
+volumes:
+  audio-data:

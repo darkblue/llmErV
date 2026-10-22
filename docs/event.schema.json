@@ -1,0 +1,534 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "llmerv-emergency-event-v1",
+  "type": "object",
+  "required": [
+    "session_id",
+    "segment_id",
+    "provider",
+    "fields",
+    "advisory_only"
+  ],
+  "properties": {
+    "session_id": {
+      "type": "string"
+    },
+    "segment_id": {
+      "type": "string"
+    },
+    "provider": {
+      "type": "string"
+    },
+    "advisory_only": {
+      "const": true
+    },
+    "fields": {
+      "type": "object",
+      "required": [
+        "event_type",
+        "flight",
+        "location",
+        "occurred_at",
+        "units",
+        "emergency_level",
+        "casualties",
+        "resources",
+        "instructions",
+        "status"
+      ],
+      "properties": {
+        "event_type": {
+          "type": "object",
+          "required": [
+            "value",
+            "verification",
+            "evidence"
+          ],
+          "properties": {
+            "value": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "verification": {
+              "enum": [
+                "confirmed",
+                "unverified",
+                "unknown"
+              ]
+            },
+            "evidence": {
+              "type": [
+                "object",
+                "null"
+              ],
+              "properties": {
+                "segment_id": {
+                  "type": "string"
+                },
+                "text": {
+                  "type": "string"
+                },
+                "start_time": {
+                  "type": "number"
+                },
+                "end_time": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "segment_id",
+                "text",
+                "start_time",
+                "end_time"
+              ]
+            }
+          }
+        },
+        "flight": {
+          "type": "object",
+          "required": [
+            "value",
+            "verification",
+            "evidence"
+          ],
+          "properties": {
+            "value": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "verification": {
+              "enum": [
+                "confirmed",
+                "unverified",
+                "unknown"
+              ]
+            },
+            "evidence": {
+              "type": [
+                "object",
+                "null"
+              ],
+              "properties": {
+                "segment_id": {
+                  "type": "string"
+                },
+                "text": {
+                  "type": "string"
+                },
+                "start_time": {
+                  "type": "number"
+                },
+                "end_time": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "segment_id",
+                "text",
+                "start_time",
+                "end_time"
+              ]
+            }
+          }
+        },
+        "location": {
+          "type": "object",
+          "required": [
+            "value",
+            "verification",
+            "evidence"
+          ],
+          "properties": {
+            "value": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "verification": {
+              "enum": [
+                "confirmed",
+                "unverified",
+                "unknown"
+              ]
+            },
+            "evidence": {
+              "type": [
+                "object",
+                "null"
+              ],
+              "properties": {
+                "segment_id": {
+                  "type": "string"
+                },
+                "text": {
+                  "type": "string"
+                },
+                "start_time": {
+                  "type": "number"
+                },
+                "end_time": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "segment_id",
+                "text",
+                "start_time",
+                "end_time"
+              ]
+            }
+          }
+        },
+        "occurred_at": {
+          "type": "object",
+          "required": [
+            "value",
+            "verification",
+            "evidence"
+          ],
+          "properties": {
+            "value": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "verification": {
+              "enum": [
+                "confirmed",
+                "unverified",
+                "unknown"
+              ]
+            },
+            "evidence": {
+              "type": [
+                "object",
+                "null"
+              ],
+              "properties": {
+                "segment_id": {
+                  "type": "string"
+                },
+                "text": {
+                  "type": "string"
+                },
+                "start_time": {
+                  "type": "number"
+                },
+                "end_time": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "segment_id",
+                "text",
+                "start_time",
+                "end_time"
+              ]
+            }
+          }
+        },
+        "units": {
+          "type": "object",
+          "required": [
+            "value",
+            "verification",
+            "evidence"
+          ],
+          "properties": {
+            "value": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "verification": {
+              "enum": [
+                "confirmed",
+                "unverified",
+                "unknown"
+              ]
+            },
+            "evidence": {
+              "type": [
+                "object",
+                "null"
+              ],
+              "properties": {
+                "segment_id": {
+                  "type": "string"
+                },
+                "text": {
+                  "type": "string"
+                },
+                "start_time": {
+                  "type": "number"
+                },
+                "end_time": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "segment_id",
+                "text",
+                "start_time",
+                "end_time"
+              ]
+            }
+          }
+        },
+        "emergency_level": {
+          "type": "object",
+          "required": [
+            "value",
+            "verification",
+            "evidence"
+          ],
+          "properties": {
+            "value": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "verification": {
+              "enum": [
+                "confirmed",
+                "unverified",
+                "unknown"
+              ]
+            },
+            "evidence": {
+              "type": [
+                "object",
+                "null"
+              ],
+              "properties": {
+                "segment_id": {
+                  "type": "string"
+                },
+                "text": {
+                  "type": "string"
+                },
+                "start_time": {
+                  "type": "number"
+                },
+                "end_time": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "segment_id",
+                "text",
+                "start_time",
+                "end_time"
+              ]
+            }
+          }
+        },
+        "casualties": {
+          "type": "object",
+          "required": [
+            "value",
+            "verification",
+            "evidence"
+          ],
+          "properties": {
+            "value": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "verification": {
+              "enum": [
+                "confirmed",
+                "unverified",
+                "unknown"
+              ]
+            },
+            "evidence": {
+              "type": [
+                "object",
+                "null"
+              ],
+              "properties": {
+                "segment_id": {
+                  "type": "string"
+                },
+                "text": {
+                  "type": "string"
+                },
+                "start_time": {
+                  "type": "number"
+                },
+                "end_time": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "segment_id",
+                "text",
+                "start_time",
+                "end_time"
+              ]
+            }
+          }
+        },
+        "resources": {
+          "type": "object",
+          "required": [
+            "value",
+            "verification",
+            "evidence"
+          ],
+          "properties": {
+            "value": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "verification": {
+              "enum": [
+                "confirmed",
+                "unverified",
+                "unknown"
+              ]
+            },
+            "evidence": {
+              "type": [
+                "object",
+                "null"
+              ],
+              "properties": {
+                "segment_id": {
+                  "type": "string"
+                },
+                "text": {
+                  "type": "string"
+                },
+                "start_time": {
+                  "type": "number"
+                },
+                "end_time": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "segment_id",
+                "text",
+                "start_time",
+                "end_time"
+              ]
+            }
+          }
+        },
+        "instructions": {
+          "type": "object",
+          "required": [
+            "value",
+            "verification",
+            "evidence"
+          ],
+          "properties": {
+            "value": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "verification": {
+              "enum": [
+                "confirmed",
+                "unverified",
+                "unknown"
+              ]
+            },
+            "evidence": {
+              "type": [
+                "object",
+                "null"
+              ],
+              "properties": {
+                "segment_id": {
+                  "type": "string"
+                },
+                "text": {
+                  "type": "string"
+                },
+                "start_time": {
+                  "type": "number"
+                },
+                "end_time": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "segment_id",
+                "text",
+                "start_time",
+                "end_time"
+              ]
+            }
+          }
+        },
+        "status": {
+          "type": "object",
+          "required": [
+            "value",
+            "verification",
+            "evidence"
+          ],
+          "properties": {
+            "value": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "verification": {
+              "enum": [
+                "confirmed",
+                "unverified",
+                "unknown"
+              ]
+            },
+            "evidence": {
+              "type": [
+                "object",
+                "null"
+              ],
+              "properties": {
+                "segment_id": {
+                  "type": "string"
+                },
+                "text": {
+                  "type": "string"
+                },
+                "start_time": {
+                  "type": "number"
+                },
+                "end_time": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "segment_id",
+                "text",
+                "start_time",
+                "end_time"
+              ]
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}
