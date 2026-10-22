@@ -1,0 +1,4 @@
+# Optional; install separately on an inference host with model download access.
+funasr>=1.2,<2
+torch>=2.5,<3
+torchaudio>=2.5,<3
