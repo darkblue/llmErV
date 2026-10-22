@@ -74,7 +74,7 @@ def test_event_read_repairs_legacy_results_isolates_sessions_and_retracts_empty_
 
 def test_explicit_fields_are_literal_and_missing_information_stays_unknown():
     item = imported(
-        "14点30分，CA1234，二七号跑道有烟雾，消防、医疗到场，三级应急，2人受伤，2辆消防车，请立即撤离，正在救援。"
+        "14点30分，CA1234，二七号跑道有烟雾，消防、医疗到场，三级应急，2人受伤，需要2辆消防车，请立即撤离，正在救援。"
     )
     fields = extract(item)["fields"]
     expected = {
@@ -95,6 +95,26 @@ def test_explicit_fields_are_literal_and_missing_information_stays_unknown():
     )
     item["corrected_text"] = "欢迎大家来体验语音识别模型"
     assert all(f["value"] is None for f in extract(item)["fields"].values())
+
+
+def test_denied_casualties_status_and_vehicle_mentions_do_not_invent_needs():
+    item = {
+        "text": "未发现人员受伤，尚未处置完成，无需2辆消防车，救护车已到场。",
+        "asr_engine": "manual_input",
+        "session_id": "negative",
+        "segment_id": "n",
+        "start_time": 0,
+        "end_time": 2,
+    }
+    fields = extract(item)["fields"]
+    assert all(
+        fields[key]["value"] is None
+        for key in ["event_type", "casualties", "resources", "status"]
+    )
+    item["text"] = "无人受伤，需要2辆救护车。"
+    fields = extract(item)["fields"]
+    assert fields["casualties"]["value"] == "无人受伤"
+    assert fields["resources"]["value"] == "2辆救护车"
 
 
 @pytest.mark.parametrize(

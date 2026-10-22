@@ -1,3 +1,5 @@
+import re
+
 FIELDS = [
     "event_type",
     "flight",
@@ -12,6 +14,13 @@ FIELDS = [
 ]
 
 
+def denied(text, match):
+    return re.search(
+        r"(?:未|没有|无|并未|不是|排除)(?:发现|发生|见)?(?:明显|任何)?\s*$",
+        text[max(0, match.start() - 8) : match.start()],
+    ) or re.match(r"(?:已)?(?:排除|否认)", text[match.end() : match.end() + 6])
+
+
 def extract(segment):
     text = segment.get("corrected_text", segment["text"])
     fields = {
@@ -20,8 +29,6 @@ def extract(segment):
     }
     # A demo transcript is never treated as emergency evidence.
     if segment["asr_engine"] != "mock":
-        import re
-
         patterns = {
             "event_type": r"起火|烟雾|漏油|跑道入侵|人员受伤|紧急撤离",
             "flight": r"(?:[A-Z]{2}|国航|南航|东航)\s?\d{3,4}",
@@ -36,19 +43,20 @@ def extract(segment):
         }
         for key, pattern in patterns.items():
             matches = list(re.finditer(pattern, text))
-            if key == "event_type":
+            if key in {"event_type", "casualties", "status"}:
                 # A denied hazard must not become a positive incident finding.
-                matches = [
-                    m
-                    for m in matches
-                    if not re.search(
-                        r"(?:未|没有|无|并未|不是|排除)(?:发现|发生|见)?(?:明显|任何)?\s*$",
-                        text[max(0, m.start() - 8) : m.start()],
-                    )
-                    and not re.match(
-                        r"(?:已)?(?:排除|否认)", text[m.end() : m.end() + 6]
-                    )
-                ]
+                matches = [m for m in matches if not denied(text, m)]
+            if key == "resources":
+                needs = []
+                for match in matches:
+                    prefix = re.split(r"[，。！？；\n]", text[: match.start()])[-1][
+                        -80:
+                    ]
+                    if re.search(
+                        r"需|请|申请|增派|调派|派出|支援", prefix
+                    ) and not re.search(r"不需要|无需|不必|不需|不要", prefix):
+                        needs.append(match)
+                matches = needs
             if matches:
                 fields[key] = {
                     "value": "、".join(
