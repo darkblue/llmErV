@@ -6,6 +6,6 @@
 - [ ] P3 native hotwords / automatic terminology correction / actual LLM
 - [x] P4 lightweight persistence, basic session history/search, events API
 - [ ] P4 rich event management and verified workflow
-- [x] P5 automated test source, Dockerfiles, deployment documentation
+- [x] P5 backend 16 tests, browser E2E, production build/typecheck, Docker builds/health, deployment documentation
 - [ ] Public preview / authenticated production service
 - [ ] Real hardware, diarization, VAD segments, reconnection resume, speed control, normalized DB migrations

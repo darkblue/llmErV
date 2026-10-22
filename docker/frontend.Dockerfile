@@ -1,7 +1,7 @@
 FROM node:22-alpine AS build
 WORKDIR /app
 COPY frontend/package*.json ./
-RUN npm ci
+RUN --mount=type=secret,id=cloud_ca,target=/run/secrets/cloud_ca,required=false if [ -f /run/secrets/cloud_ca ]; then NODE_EXTRA_CA_CERTS=/run/secrets/cloud_ca npm ci; else npm ci; fi
 COPY frontend .
 ARG NEXT_PUBLIC_BACKEND_URL=http://localhost:8000
 ENV NEXT_PUBLIC_BACKEND_URL=$NEXT_PUBLIC_BACKEND_URL

@@ -1,9 +1,11 @@
 # Validation evidence (2026-10-22)
 - Python 3.12, Node 24, FFmpeg available; no visible NVIDIA GPU.
-- Backend pytest: 10 passed; upload format/size/duration, 44.1kHz stereo→16kHz mono, search/delete, WebSocket chunk/partial/final, lifecycle, revision, concurrent isolation/disconnect, dictionary/evidence, Mock adapter lifecycle.
+- Backend pytest: 16 passed; upload format/size/duration, 44.1kHz stereo→16kHz mono, search/delete, WebSocket chunk/partial/final, lifecycle, revision, concurrent isolation/disconnect, dictionary/evidence, Mock adapter lifecycle.
 - Browser Chromium E2E: 2 passed, actual upload/playback/streaming, pause freezes input, resume, Final, manual revision, history, stop/restart.
 - Next.js production build and TypeScript checks passed.
 - pip check: no broken requirements.
 - Real ASR not tested: ModelScope access returned proxy policy 403; no cached model or GPU. Adapter source is not evidence of model accuracy. CER/WER utility provided, no speech evaluation dataset supplied.
-- Docker and GitHub PR status are updated in the final report; initial Docker build hit nested-container DNS; Git read works while GitHub API returned Forbidden.
+- Docker frontend/backend builds passed after supported proxy DNS mapping and platform CA trust setup. Non-root source ownership was corrected. Compose backend tests: 16 passed. Backend health and frontend HTTP 200 verified. Both containers healthy. Browser E2E against containerized production services: 2 passed.
+- Git feature branch pushed successfully. Automatic PR creation failed: GitHub GraphQL API returned Forbidden; existing Git HTTPS proxy authentication supports push. No main merge or production deployment performed.
+- Known warnings: Starlette TestClient httpx deprecation; non-root Docker pytest cache cannot write /app/.pytest_cache (test results unaffected).
 - Tests use self-generated tones only, no operational communications.

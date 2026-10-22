@@ -1,5 +1,6 @@
 services:
   backend:
+    image: llmerv-backend
     build:
       context: .
       dockerfile: docker/backend.Dockerfile
@@ -22,9 +23,7 @@ services:
       backend:
         condition: service_healthy
   test:
-    build:
-      context: .
-      dockerfile: docker/backend.Dockerfile
+    image: llmerv-backend
     profiles: ["test"]
     command: ["python", "-m", "pytest", "-q", "tests"]
     environment:

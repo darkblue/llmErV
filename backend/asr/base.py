@@ -1,10 +1,12 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
+
 @dataclass
 class ASRResult:
     text: str
     is_final: bool
+
 
 class ASRAdapter(ABC):
     native_hotwords = False
