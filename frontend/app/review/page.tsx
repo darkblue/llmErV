@@ -614,6 +614,14 @@ export default function ReviewPage() {
               <Button variant="outline" onClick={listen}>
                 回听本段
               </Button>
+              <a
+                className="cyan"
+                href={API + "/audio/" + segment.source_id + "/content"}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                打开完整原录音（核对漏字）
+              </a>
               <h3>原始转写（保留）</h3>
               <pre className="original-text">
                 {segment.original_text || segment.text}
