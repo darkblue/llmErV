@@ -6,6 +6,9 @@ from dataclasses import dataclass
 class ASRResult:
     text: str
     is_final: bool
+    start_time: float | None = None
+    end_time: float | None = None
+    confidence: float | None = None
 
 
 class ASRAdapter(ABC):
@@ -21,3 +24,9 @@ class ASRAdapter(ABC):
     async def finalize_segment(self) -> ASRResult | None: ...
     @abstractmethod
     async def end_session(self): ...
+
+
+class ASRError(Exception):
+    def __init__(self, code: str):
+        self.code = code
+        super().__init__(code)

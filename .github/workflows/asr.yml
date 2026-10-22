@@ -1,0 +1,35 @@
+name: Real ASR
+on: [push, pull_request]
+jobs:
+  chinese-streaming:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install integration prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ffmpeg espeak-ng unzip
+          pip install -r backend/requirements.txt vosk==0.3.45
+      - name: Obtain official Chinese model over verified HTTPS
+        run: |
+          curl --fail --location --retry 3 --max-time 180 https://alphacephei.com/vosk/models/vosk-model-small-cn-0.22.zip -o /tmp/vosk-cn.zip
+          model_hash=$(sha256sum /tmp/vosk-cn.zip | cut -d' ' -f1)
+          echo "::notice title=Official model SHA256::$model_hash"
+          unzip -q /tmp/vosk-cn.zip -d /tmp/asr-models
+      - name: Verify genuine incremental inference on self-authored speech
+        env:
+          ASR_MODEL: /tmp/asr-models/vosk-model-small-cn-0.22
+        run: |
+          PYTHONPATH=. python scripts/asr_smoke.py 2>&1 | tee /tmp/real-asr-smoke.log
+          echo "::notice title=Actual model smoke result::$(tail -1 /tmp/real-asr-smoke.log)"
+      - name: Retain inference report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: real-asr-report-${{ github.event_name }}
+          path: /tmp/real-asr-smoke.log
+          if-no-files-found: ignore
