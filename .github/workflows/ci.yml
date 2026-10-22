@@ -63,9 +63,9 @@ jobs:
           cd frontend
           npm run test:e2e 2>&1 | tee /tmp/browser.log
       - name: Docker build
-        run: docker compose build
+        run: docker compose build 2>&1 | tee /tmp/docker-build.log
       - name: Container backend tests
-        run: docker compose --profile test run --rm test
+        run: docker compose --profile test run --rm test 2>&1 | tee /tmp/container-tests.log
       - name: Container health checks with real Chinese model
         env:
           ASR_PROVIDER: vosk
@@ -90,6 +90,8 @@ jobs:
             /tmp/frontend-install.log
             /tmp/frontend-build.log
             /tmp/compose.log
+            /tmp/docker-build.log
+            /tmp/container-tests.log
             frontend/test-results/
           if-no-files-found: ignore
           retention-days: 7

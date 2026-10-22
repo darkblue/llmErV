@@ -15,6 +15,8 @@ if __name__ == "__main__":
         "browser.log",
         "frontend-install.log",
         "frontend-build.log",
+        "docker-build.log",
+        "container-tests.log",
     ):
         path = Path("/tmp") / name
         if path.is_file():

@@ -10,6 +10,7 @@ RUN python /tmp/provision_vosk_model.py --manifest /tmp/vosk-model.json --destin
 ENV VOSK_MODEL_PATH=/opt/llmerv-models/vosk-model-small-cn-0.22 OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1
 COPY --chown=1000:1000 backend backend
 COPY --chown=1000:1000 tests tests
+COPY --chown=1000:1000 scripts scripts
 RUN useradd --uid 1000 --create-home app && mkdir /app/data && chown app:app /app/data
 USER app
 EXPOSE 8000
