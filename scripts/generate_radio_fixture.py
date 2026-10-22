@@ -85,7 +85,9 @@ def generate(model_dir, output):
     clips = []
     metrics = []
     for reading in [manifest["text"]]:
-        phones, tones = [], []
+        # Melo's Chinese G2P includes utterance boundaries *before* add_blank:
+        # https://github.com/myshell-ai/MeloTTS/blob/main/melo/text/chinese_mix.py
+        phones, tones = [tokens["_"]], [0]
         punctuation = {"，": ",", "。": "."}
         for char in reading:
             if char in lexicon:
@@ -97,6 +99,8 @@ def generate(model_dir, output):
                 tones.append(0)
             else:
                 raise ValueError("Unexpected character in authored radio fixture")
+        phones.append(tokens["_"])
+        tones.append(0)
         if int(metadata["add_blank"]):
             padded_phones = [0] * (2 * len(phones) + 1)
             padded_tones = [0] * (2 * len(tones) + 1)
@@ -112,7 +116,7 @@ def generate(model_dir, output):
                     "sid": np.asarray([speaker_id], dtype=np.int64),
                     "noise_scale": np.asarray([0.6], dtype=np.float32),
                     "noise_scale_w": np.asarray([0.8], dtype=np.float32),
-                    "length_scale": np.asarray([2.0], dtype=np.float32),
+                "length_scale": np.asarray([1.0], dtype=np.float32),
                 },
             )[0]
             .reshape(-1)
