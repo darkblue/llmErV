@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import {
   Radio,
   Upload,
@@ -318,6 +319,9 @@ export default function Home() {
           </div>
         </div>
         <div className="top-status">
+          <Link href="/review" className="button outline">
+            对话修订工作台
+          </Link>
           <span className="dot" />
           {mode}
           <span className="separator" />
@@ -379,12 +383,12 @@ export default function Home() {
           <label className="upload">
             <Upload />
             <b>{busy ? "音频解码中…" : "上传通信录音"}</b>
-            <small>WAV / MP3 / FLAC / M4A / OGG</small>
+            <small>WAV / MP3 / FLAC / M4A / OGG / MP4</small>
             <small>最大 50 MB · 最长 30 分钟</small>
             <input
               aria-label="上传音频"
               type="file"
-              accept=".wav,.mp3,.flac,.m4a,.ogg"
+              accept=".wav,.mp3,.flac,.m4a,.ogg,.mp4"
               disabled={busy || locked}
               onChange={(e) => {
                 if (e.target.files?.[0]) upload(e.target.files[0]);
@@ -581,6 +585,9 @@ export default function Home() {
                   />
                 </label>
                 <small>原始文本：{s.original_text || s.text}</small>
+                <Link href={"/review?segment=" + s.segment_id} className="cyan">
+                  参考规范与单卡修订 →
+                </Link>
               </article>
             ))}
             {!segments.length && (

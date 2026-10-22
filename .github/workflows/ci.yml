@@ -1,25 +1,94 @@
 name: CI
 on: [push, pull_request]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      NEXT_TELEMETRY_DISABLED: 1
+    defaults:
+      run:
+        shell: bash
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
-        with: {python-version: '3.12'}
+        with:
+          python-version: '3.12'
       - uses: actions/setup-node@v4
-        with: {node-version: '22', cache: npm, cache-dependency-path: frontend/package-lock.json}
-      - run: sudo apt-get update && sudo apt-get install -y ffmpeg
-      - run: pip install -r backend/requirements-dev.txt
-      - run: python -m pytest -q
-      - run: npm ci && npm run build && npm run typecheck
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install and verify media and PDF tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ffmpeg poppler-utils
+          ffmpeg -version
+          ffprobe -version
+          pdfinfo -v
+          pdftotext -v
+      - name: Install backend dependencies
+        run: pip install -r backend/requirements-dev.txt
+      - name: Backend tests
+        run: python -m pytest -q --junitxml=/tmp/backend-tests.xml
+      - name: Install frontend dependencies
+        timeout-minutes: 5
+        run: npm ci --fetch-retries=1 --fetch-timeout=30000 2>&1 | tee /tmp/frontend-install.log
         working-directory: frontend
-      - run: npx playwright install --with-deps chromium
+      - name: Frontend production build
+        timeout-minutes: 5
+        run: npm run build 2>&1 | tee /tmp/frontend-build.log
         working-directory: frontend
-      - run: |
+      - name: Frontend typecheck
+        timeout-minutes: 2
+        run: npm run typecheck
+        working-directory: frontend
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+        working-directory: frontend
+      - name: Browser tests
+        run: |
           uvicorn backend.main:app --host 0.0.0.0 --port 8000 > /tmp/backend.log 2>&1 &
-          for i in $(seq 1 30); do curl -fsS http://localhost:8000/health && break; sleep 1; done
+          llmerv_backend_pid=$!
+          trap 'kill "$llmerv_backend_pid" 2>/dev/null || true' EXIT
+          if ! timeout 45s bash -c 'until curl -fsS http://localhost:8000/health > /dev/null; do sleep 1; done'; then
+            cat /tmp/backend.log
+            exit 1
+          fi
           cd frontend
-          npm run test:e2e
-      - run: docker compose build
-      - run: docker compose --profile test run --rm test
+          npm run test:e2e 2>&1 | tee /tmp/browser.log
+      - name: Docker build
+        run: docker compose build
+      - name: Container backend tests
+        run: docker compose --profile test run --rm test
+      - name: Container health checks
+        run: docker compose up -d --no-build --wait --wait-timeout 90
+      - name: Collect container logs
+        if: always()
+        run: docker compose logs --no-color > /tmp/compose.log 2>&1
+      - name: Summarize failures in check annotations
+        if: failure()
+        run: python scripts/ci_failure_summary.py
+      - name: Preserve failure diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-failure-${{ github.event_name }}-${{ github.run_id }}
+          path: |
+            /tmp/backend-tests.xml
+            /tmp/backend.log
+            /tmp/browser.log
+            /tmp/frontend-install.log
+            /tmp/frontend-build.log
+            /tmp/compose.log
+            frontend/test-results/
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Stop CI containers
+        if: always()
+        run: docker compose down
