@@ -5,3 +5,5 @@ data
 **/__pycache__
 .pytest_cache
 frontend/test-results
+
+models/

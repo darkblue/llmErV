@@ -3,6 +3,7 @@ import json
 import os
 import time
 import uuid
+from contextlib import asynccontextmanager
 from pathlib import Path
 from fastapi import FastAPI, UploadFile, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
@@ -10,7 +11,8 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 from backend.models import DATA, save, get, listing, remove
 from backend.audio.codec import decode
-from backend.asr.mock import MockASR
+from backend.asr.base import ASRError
+from backend.asr.providers import initialize, capabilities, create_adapter
 from backend.events.extract import extract
 from backend.review.api import router as review_router
 from backend.review.service import (
@@ -20,7 +22,14 @@ from backend.review.service import (
     segment as review_segment,
 )
 
-app = FastAPI(title="llmErV", version="0.1.0")
+
+@asynccontextmanager
+async def lifespan(app):
+    await initialize()
+    yield
+
+
+app = FastAPI(title="llmErV", version="0.3.0", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[os.getenv("FRONTEND_URL", "http://localhost:3000")],
@@ -29,19 +38,29 @@ app.add_middleware(
 )
 app.include_router(review_router)
 
-PROVIDER = os.getenv("ASR_PROVIDER", "mock")
+PROVIDER = os.getenv("ASR_PROVIDER", "mock").strip().lower()
 MAX_BYTES = 50 * 1024 * 1024
 
 
 @app.get("/health")
 def health():
+    info = capabilities()
+    name = info["provider"]
     return {
         "status": "ok",
-        "asr_provider": PROVIDER,
-        "mode": "模拟识别" if PROVIDER == "mock" else "真实识别（需模型就绪）",
+        "asr_provider": name,
+        "mode": "模拟识别"
+        if name == "mock"
+        else ("真实流式识别 · " + name if info["ready"] else "ASR 未就绪"),
+        "asr": info,
         "native_hotwords": False,
         "llm_provider": "rules",
     }
+
+
+@app.get("/asr/capabilities")
+def asr_capabilities():
+    return capabilities()
 
 
 @app.post("/audio", status_code=201)
@@ -101,7 +120,10 @@ def sessions():
 
 @app.get("/sessions/{id}/transcripts")
 def transcripts(id: str):
-    return [x for x in listing("transcript") if x["session_id"] == id]
+    return sorted(
+        [x for x in listing("transcript") if x["session_id"] == id],
+        key=lambda x: (x["start_time"], x["end_time"], x["segment_id"]),
+    )
 
 
 @app.get("/events")
@@ -168,10 +190,50 @@ async def recognize(ws: WebSocket):
     adapter = None
     sid, segment_id = str(uuid.uuid4()), str(uuid.uuid4())
     state, samples, seq = "new", 0, 0
+    segment_start = 0.0
     source = None
 
     async def error(code):
         await ws.send_json({"type": "error", "code": code})
+
+    async def emit_result(result):
+        nonlocal segment_id, segment_start
+        if result is None:
+            return
+        item = {
+            "type": "final" if result.is_final and result.text else "partial",
+            "session_id": sid,
+            "source_id": source,
+            "segment_id": segment_id,
+            "start_time": result.start_time
+            if result.start_time is not None
+            else segment_start,
+            "end_time": result.end_time
+            if result.end_time is not None
+            else samples / 16000,
+            "text": result.text,
+            "is_final": bool(result.is_final and result.text),
+            "asr_engine": PROVIDER,
+            "confidence": result.confidence,
+            "speaker_id": None,
+        }
+        if item["is_final"]:
+            item.update(
+                original_text=result.raw_text
+                if result.raw_text is not None
+                else result.text,
+                corrected_text=result.text,
+            )
+            save("transcript", segment_id, item)
+            event = extract(item)
+            save("event", segment_id + ":event", event)
+            await ws.send_json(item)
+            await ws.send_json({"type": "event", **event})
+        else:
+            await ws.send_json(item)
+        if result.is_final:
+            segment_id = str(uuid.uuid4())
+            segment_start = samples / 16000
 
     try:
         message = await asyncio.wait_for(ws.receive_json(), 15)
@@ -183,15 +245,15 @@ async def recognize(ws: WebSocket):
         ):
             await error("INVALID_START")
             return
-        if PROVIDER == "mock":
-            adapter = MockASR()
-        elif PROVIDER == "funasr":
-            from backend.asr.funasr import FunASRStreaming
-
-            adapter = FunASRStreaming()
-        else:
+        try:
+            adapter = create_adapter()
+        except ValueError:
             await error("PROVIDER_UNAVAILABLE")
             return
+        if PROVIDER != "mock":
+            await ws.send_json(
+                {"type": "model_status", "status": "loading", "asr_engine": PROVIDER}
+            )
         await adapter.start_session(hotwords()["words"])
         state = "running"
         save(
@@ -230,22 +292,7 @@ async def recognize(ws: WebSocket):
                 result = await adapter.get_partial_result()
                 elapsed = time.perf_counter() - started
                 seq += 1
-                if result:
-                    await ws.send_json(
-                        {
-                            "type": "partial",
-                            "session_id": sid,
-                            "source_id": source,
-                            "segment_id": segment_id,
-                            "start_time": 0,
-                            "end_time": samples / 16000,
-                            "text": result.text,
-                            "is_final": False,
-                            "asr_engine": PROVIDER,
-                            "confidence": None,
-                            "speaker_id": None,
-                        }
-                    )
+                await emit_result(result)
                 await ws.send_json(
                     {
                         "type": "progress",
@@ -263,27 +310,7 @@ async def recognize(ws: WebSocket):
                     state = "running"
                 elif control in ("stop", "finish"):
                     result = await adapter.finalize_segment()
-                    if result:
-                        item = {
-                            "type": "final",
-                            "session_id": sid,
-                            "source_id": source,
-                            "segment_id": segment_id,
-                            "start_time": 0,
-                            "end_time": samples / 16000,
-                            "text": result.text,
-                            "original_text": result.text,
-                            "corrected_text": result.text,
-                            "is_final": True,
-                            "confidence": None,
-                            "speaker_id": None,
-                            "asr_engine": PROVIDER,
-                        }
-                        save("transcript", segment_id, item)
-                        event = extract(item)
-                        save("event", segment_id + ":event", event)
-                        await ws.send_json(item)
-                        await ws.send_json({"type": "event", **event})
+                    await emit_result(result)
                     state = "finished" if control == "finish" else "stopped"
                     await ws.send_json({"type": "ended", "status": state})
                     break
@@ -291,6 +318,9 @@ async def recognize(ws: WebSocket):
                     await error("INVALID_STATE")
                     continue
                 await ws.send_json({"type": "state", "status": state})
+    except ASRError as e:
+        state = "failed"
+        await error(e.code)
     except (WebSocketDisconnect, RuntimeError):
         state = "disconnected"
     except asyncio.TimeoutError:

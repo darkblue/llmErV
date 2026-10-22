@@ -15,7 +15,7 @@ class FunASRStreaming(ASRAdapter):
 
             type(self).model = await asyncio.to_thread(
                 AutoModel,
-                model=os.getenv("ASR_MODEL", "paraformer-zh-streaming"),
+                model=os.getenv("ASR_MODEL") or "paraformer-zh-streaming",
                 disable_update=True,
             )
             type(self).lock = asyncio.Lock()

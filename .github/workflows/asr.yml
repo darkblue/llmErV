@@ -1,0 +1,74 @@
+name: Real ASR
+on: [push, pull_request]
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  chinese-streaming:
+    runs-on: ubuntu-24.04
+    env:
+      NEXT_TELEMETRY_DISABLED: 1
+    defaults:
+      run:
+        shell: bash
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install integration prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ffmpeg
+          pip install -r backend/requirements-dev.txt
+      - uses: actions/cache@v4
+        with:
+          path: /tmp/asr-models
+          key: vosk-cn-${{ runner.os }}-${{ hashFiles('backend/asr/model.json') }}
+      - name: Verify and install pinned official Chinese model
+        run: python scripts/provision_vosk_model.py --destination /tmp/asr-models
+      - name: Verify upload, incremental inference and history on licensed Mandarin
+        env:
+          ASR_MODEL: /tmp/asr-models/vosk-model-small-cn-0.22
+          ASR_PROVIDER: vosk
+          DATA_DIR: /tmp/llmerv-real-asr-data
+        run: |
+          PYTHONPATH=. python scripts/asr_smoke.py 2>&1 | tee /tmp/real-asr-smoke.log
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Build real-ASR browser client
+        working-directory: frontend
+        run: |
+          npm ci --fetch-retries=1 --fetch-timeout=30000
+          npm run build
+          npx playwright install --with-deps chromium
+      - name: Browser acceptance with actual Chinese model
+        env:
+          ASR_MODEL: /tmp/asr-models/vosk-model-small-cn-0.22
+          ASR_PROVIDER: vosk
+          DATA_DIR: /tmp/llmerv-real-browser-data
+        run: |
+          uvicorn backend.main:app --host 0.0.0.0 --port 8000 > /tmp/backend.log 2>&1 &
+          llmerv_asr_pid=$!
+          trap 'kill "$llmerv_asr_pid" 2>/dev/null || true' EXIT
+          timeout 45s bash -c 'until curl -fsS http://localhost:8000/health > /dev/null; do sleep 1; done'
+          cd frontend
+          npx playwright test --config=playwright.real.config.ts 2>&1 | tee /tmp/browser.log
+      - name: Summarize inference or browser failures
+        if: failure()
+        run: python scripts/ci_failure_summary.py
+      - name: Retain inference report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: real-asr-report-${{ github.event_name }}
+          path: |
+            /tmp/real-asr-smoke.log
+            /tmp/backend.log
+            /tmp/browser.log
+            frontend/test-results/
+          if-no-files-found: ignore

@@ -30,7 +30,9 @@ type Segment = {
   text: string;
   original_text?: string;
   corrected_text?: string;
+  start_time?: number;
   end_time: number;
+  confidence?: number | null;
   asr_engine: string;
 };
 type EventInfo = {
@@ -53,6 +55,12 @@ export default function Home() {
     [selected, setSelected] = useState<AudioFile>(),
     [query, setQuery] = useState(""),
     [mode, setMode] = useState("连接中"),
+    [asrInfo, setAsrInfo] = useState<{
+      provider: string;
+      ready: boolean;
+      status: string;
+      error_code?: string | null;
+    }>(),
     [status, setStatus] = useState("idle"),
     [error, setError] = useState(""),
     [progress, setProgress] = useState(0),
@@ -78,16 +86,34 @@ export default function Home() {
     pcm = useRef<Float32Array>(new Float32Array()),
     sending = useRef(false),
     lastSent = useRef(0),
-    statusRef = useRef("idle");
+    statusRef = useRef("idle"),
+    hasFinal = useRef(false);
   const load = async () => {
     setFiles(await fetch(API + "/audio").then((r) => r.json()));
   };
+  const refreshASR = async () => {
+    try {
+      const response = await fetch(API + "/health");
+      if (!response.ok) throw Error("health");
+      const value = await response.json();
+      setMode(value.mode);
+      setAsrInfo(
+        value.asr
+          ? { provider: value.asr_provider, ...value.asr }
+          : {
+              provider: value.asr_provider,
+              ready: value.asr_provider === "mock",
+              status: "legacy",
+            },
+      );
+    } catch {
+      setMode("离线");
+      setAsrInfo(undefined);
+    }
+  };
   useEffect(() => {
     load().catch(() => setError("后端连接失败"));
-    fetch(API + "/health")
-      .then((r) => r.json())
-      .then((x) => setMode(x.mode))
-      .catch(() => setMode("离线"));
+    refreshASR();
     fetch(API + "/hotwords")
       .then((r) => r.json())
       .then((x) => setWords(x.words.join("\n")))
@@ -114,7 +140,9 @@ export default function Home() {
   async function start() {
     if (!selected) return;
     cleanup();
-    ws.current?.close();
+    const previousSocket = ws.current;
+    ws.current = null;
+    previousSocket?.close();
     setError("");
     setSegments([]);
     setPartial("");
@@ -123,6 +151,7 @@ export default function Home() {
     updateStatus("connecting");
     sent.current = 0;
     sending.current = false;
+    hasFinal.current = false;
     try {
       const context = new AudioContext({ sampleRate: 16000 });
       ctx.current = context;
@@ -140,8 +169,15 @@ export default function Home() {
       socket.onopen = () =>
         socket.send(JSON.stringify({ type: "start", source_id: selected.id }));
       socket.onmessage = async (e) => {
+        if (ws.current !== socket) return;
         const m = JSON.parse(e.data);
+        if (m.type === "model_status") setMode("模型加载中 · " + m.asr_engine);
         if (m.type === "ready") {
+          setMode(
+            m.asr_engine === "mock"
+              ? "模拟识别"
+              : "真实流式识别 · " + m.asr_engine,
+          );
           const source = context.createBufferSource();
           source.buffer = buffer;
           source.connect(context.destination);
@@ -159,6 +195,7 @@ export default function Home() {
           setRtf(m.rtf);
         }
         if (m.type === "final") {
+          hasFinal.current = true;
           setPartial("");
           setSegments((s) => [
             ...s.filter((x) => x.segment_id !== m.segment_id),
@@ -174,22 +211,35 @@ export default function Home() {
           }
         }
         if (m.type === "ended") {
+          if (!hasFinal.current)
+            setError("本次未识别到可确认语音，请检查音量、语言和录音清晰度。");
           cleanup();
           updateStatus(m.status);
         }
         if (m.type === "error") {
-          setError(m.code);
+          const messages: Record<string, string> = {
+            ASR_BUSY: "真实识别会话已占用，请稍后重试。",
+            ASR_MODEL_MISSING: "中文模型文件未安装，请检查 ASR_MODEL 配置。",
+            ASR_MODEL_LOAD_FAILED:
+              "模型加载失败，请检查 Render 日志及实例内存。",
+            ASR_DEPENDENCY_MISSING: "识别引擎依赖未安装，请部署新版后端镜像。",
+            SESSION_FAILED: "识别会话失败，请检查后端日志。",
+          };
+          setError(messages[m.code] || m.code);
           cleanup();
           updateStatus("error");
           socket.close();
+          refreshASR();
         }
       };
       socket.onerror = () => {
+        if (ws.current !== socket) return;
         setError("WebSocket 连接失败");
         cleanup();
         updateStatus("error");
       };
       socket.onclose = () => {
+        if (ws.current !== socket) return;
         if (["running", "paused", "connecting"].includes(statusRef.current)) {
           cleanup();
           updateStatus("disconnected");
@@ -368,6 +418,20 @@ export default function Home() {
           <strong>{locked ? "会话连接中" : "待连接"}</strong>
         </div>
       </section>
+      {asrInfo && !asrInfo.ready && (
+        <div className="alert">
+          ASR 尚未就绪：{asrInfo.error_code || asrInfo.status}。
+          <Button variant="outline" onClick={refreshASR}>
+            刷新模型状态
+          </Button>
+        </div>
+      )}
+      {asrInfo?.provider === "vosk" && (
+        <div className="asr-banner">
+          真实中文流式识别 · Vosk · CPU · 16kHz ·
+          默认单会话。机场术语和关键信息请回听核实；当前词典不具备模型原生热词加权。
+        </div>
+      )}
       {error && (
         <div role="alert" className="alert">
           {error}
@@ -510,7 +574,10 @@ export default function Home() {
               </span>
             </div>
             <div className="controls">
-              <Button disabled={!selected || locked} onClick={start}>
+              <Button
+                disabled={!selected || locked || !asrInfo?.ready}
+                onClick={start}
+              >
                 <Play size={16} />
                 开始识别
               </Button>
@@ -532,7 +599,7 @@ export default function Home() {
               </Button>
               <Button
                 variant="outline"
-                disabled={!selected || locked}
+                disabled={!selected || locked || !asrInfo?.ready}
                 onClick={start}
               >
                 <RotateCcw size={15} />
@@ -568,10 +635,18 @@ export default function Home() {
             {segments.map((s) => (
               <article key={s.segment_id}>
                 <div>
-                  <span className="cyan">00:00 — {s.end_time.toFixed(1)}s</span>
+                  <span className="cyan">
+                    {(s.start_time || 0).toFixed(1)}s — {s.end_time.toFixed(1)}s
+                  </span>
                   <span className="final-tag">FINAL · {s.asr_engine}</span>
                 </div>
                 <p>{s.text}</p>
+                {s.confidence != null && (
+                  <small>
+                    词级置信度均值 {(s.confidence * 100).toFixed(0)}
+                    %（非准确率）
+                  </small>
+                )}
                 <label>
                   人工修订
                   <textarea
@@ -598,7 +673,11 @@ export default function Home() {
               </div>
             )}
           </div>
-          <footer>模拟模式仅验证数据链路，不代表音频内容或识别准确率。</footer>
+          <footer>
+            {asrInfo?.provider === "mock"
+              ? "模拟模式仅验证数据链路，不代表音频内容或识别准确率。"
+              : "真实模型增量识别；置信度不是准确率，关键事实须回听核实。"}
+          </footer>
         </section>
         <aside className="panel">
           <div className="panel-title">

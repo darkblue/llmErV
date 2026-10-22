@@ -7,7 +7,8 @@ services:
     ports: ["8000:8000"]
     environment:
       ASR_PROVIDER: ${ASR_PROVIDER:-mock}
-      ASR_MODEL: ${ASR_MODEL:-paraformer-zh-streaming}
+      ASR_MODEL: ${ASR_MODEL:-}
+      ASR_MAX_SESSIONS: ${ASR_MAX_SESSIONS:-1}
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
       LLM_PROVIDER: rules
     volumes: ["audio-data:/app/data"]

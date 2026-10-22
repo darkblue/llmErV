@@ -18,3 +18,12 @@
 - [x] MP4 audio-track import and explicitly labeled manual transcript import
 - [ ] User exercise actual speech validation: attachment transfer exceeds 32MiB; needs extracted audio/smaller parts
 - [ ] Broad phonetic ASR correction, authenticated operator audit, cross-turn readback analysis and automated OCR
+
+## Real ASR / free CPU trial
+- [x] Real Vosk Mandarin incremental inference and per-utterance Finals
+- [x] Fixed-SHA model distribution in Docker, explicit readiness/failure and one-session default
+- [x] Licensed Mandarin upload/WS/history integration check and CI performance report
+- [x] Protocol/model artifact tests, Render enablement documentation
+- [ ] User's original exercise recording acceptance (previous video exceeded transfer limit)
+- [ ] Representative airport radio evaluation, native hotword boosting, diarization, production authentication
+- [ ] FunASR on GPU / stronger CPU instance acceptance (Vosk is the tested free-trial engine)
