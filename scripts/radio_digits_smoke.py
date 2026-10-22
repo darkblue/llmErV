@@ -28,7 +28,7 @@ def check():
                 "110",
                 "-w",
                 str(path / "tts.wav"),
-                "幺，两，拐，洞。",
+                "yao1, liang3, guai3, dong4.",
             ],
             check=True,
         )
@@ -100,6 +100,11 @@ def check():
         report = {
             "source": "self-authored espeak-ng synthetic speech; not human radio evaluation",
             "reference": "1270",
+            "synthesis_input": "yao1 liang3 guai3 dong4 (explicit Mandarin tones)",
+            "synthesis_ipa": subprocess.check_output(
+                ["espeak-ng", "-v", "cmn", "-q", "--ipa", "yao1 liang3 guai3 dong4"],
+                text=True,
+            ).strip(),
             "observed_digits": observed,
             "raw_finals": [m["original_text"] for m in finals],
             "partials": len(partials),
