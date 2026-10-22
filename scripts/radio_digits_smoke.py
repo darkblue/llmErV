@@ -19,19 +19,7 @@ def check():
         TestClient(app) as client,
     ):
         path = Path(folder)
-        subprocess.run(
-            [
-                "espeak-ng",
-                "-v",
-                "cmn-latn-pinyin",
-                "-s",
-                "110",
-                "-w",
-                str(path / "tts.wav"),
-                "yao1, liang3, guai3, dong4.",
-            ],
-            check=True,
-        )
+        source_audio = Path(os.environ["RADIO_DIGIT_SOURCE"])
         subprocess.run(
             [
                 "ffmpeg",
@@ -39,7 +27,7 @@ def check():
                 "error",
                 "-y",
                 "-i",
-                str(path / "tts.wav"),
+                str(source_audio),
                 "-af",
                 "adelay=1000|1000,apad=pad_dur=2",
                 "-ar",
@@ -98,20 +86,9 @@ def check():
             m["radio_digits"]["digits"] for m in finals if m.get("radio_digits")
         )
         report = {
-            "source": "self-authored espeak-ng synthetic speech; not human radio evaluation",
+            "source": "self-authored MIT MeloTTS synthetic speech; not human radio evaluation",
             "reference": "1270",
-            "synthesis_input": "yao1 liang3 guai3 dong4 (explicit Mandarin tones)",
-            "synthesis_ipa": subprocess.check_output(
-                [
-                    "espeak-ng",
-                    "-v",
-                    "cmn-latn-pinyin",
-                    "-q",
-                    "--ipa",
-                    "yao1 liang3 guai3 dong4",
-                ],
-                text=True,
-            ).strip(),
+            "synthesis_input": "幺，两，拐，洞。",
             "observed_digits": observed,
             "raw_finals": [m["original_text"] for m in finals],
             "partials": len(partials),
