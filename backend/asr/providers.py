@@ -47,9 +47,16 @@ async def initialize():
         except Exception:
             STATE.update(status="unavailable", error_code="ASR_MODEL_LOAD_FAILED")
     elif name == "funasr":
-        # Session creation still attempts real initialization; health does not
-        # label a configured but untested model as ready.
-        STATE.update(status="load_on_session", error_code=None)
+        if importlib.util.find_spec("funasr") is None:
+            STATE.update(status="unavailable", error_code="ASR_DEPENDENCY_MISSING")
+            return
+        try:
+            adapter = create_adapter()
+            await adapter.start_session([])
+            await adapter.end_session()
+            STATE.update(ready=True, status="ready", error_code=None)
+        except Exception:
+            STATE.update(status="unavailable", error_code="ASR_MODEL_LOAD_FAILED")
     else:
         STATE.update(status="unavailable", error_code="ASR_PROVIDER_UNSUPPORTED")
 

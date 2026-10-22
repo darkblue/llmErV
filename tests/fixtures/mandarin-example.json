@@ -1,0 +1,9 @@
+{
+  "file": "mandarin-example.wav",
+  "source": "https://github.com/modelscope/FunASR/blob/24217c8ff0b81f3d967593f0bf84609306929f99/runtime/funasr_api/asr_example.wav",
+  "sha256": "a1bd32dc78493c123f9625a66deee562aed2895f53fbc39f2cca3be7e6f4f20f",
+  "license": "MIT",
+  "license_file": "FUNASR-LICENSE.txt",
+  "reference": "欢迎大家来体验达摩院推出的语音识别模型",
+  "purpose": "Public upstream Mandarin demo, not airport operational communications. Single-sample smoke check, not accuracy benchmark."
+}

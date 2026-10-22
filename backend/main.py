@@ -38,21 +38,21 @@ app.add_middleware(
 )
 app.include_router(review_router)
 
-PROVIDER = os.getenv("ASR_PROVIDER", "mock")
+PROVIDER = os.getenv("ASR_PROVIDER", "mock").strip().lower()
 MAX_BYTES = 50 * 1024 * 1024
 
 
 @app.get("/health")
 def health():
+    info = capabilities()
+    name = info["provider"]
     return {
         "status": "ok",
-        "asr_provider": PROVIDER,
+        "asr_provider": name,
         "mode": "模拟识别"
-        if PROVIDER == "mock"
-        else (
-            "真实流式识别 · " + PROVIDER if capabilities()["ready"] else "ASR 未就绪"
-        ),
-        "asr": capabilities(),
+        if name == "mock"
+        else ("真实流式识别 · " + name if info["ready"] else "ASR 未就绪"),
+        "asr": info,
         "native_hotwords": False,
         "llm_provider": "rules",
     }
