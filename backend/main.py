@@ -215,7 +215,12 @@ async def recognize(ws: WebSocket):
             "speaker_id": None,
         }
         if item["is_final"]:
-            item.update(original_text=result.text, corrected_text=result.text)
+            item.update(
+                original_text=result.raw_text
+                if result.raw_text is not None
+                else result.text,
+                corrected_text=result.text,
+            )
             save("transcript", segment_id, item)
             event = extract(item)
             save("event", segment_id + ":event", event)

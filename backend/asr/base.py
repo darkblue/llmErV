@@ -9,6 +9,7 @@ class ASRResult:
     start_time: float | None = None
     end_time: float | None = None
     confidence: float | None = None
+    raw_text: str | None = None
 
 
 class ASRAdapter(ABC):

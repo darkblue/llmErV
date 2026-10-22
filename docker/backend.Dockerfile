@@ -4,6 +4,10 @@ RUN sed -i 's|http://deb.debian.org|https://deb.debian.org|g' /etc/apt/sources.l
 WORKDIR /app
 COPY backend/requirements.txt backend/requirements-dev.txt backend/
 RUN pip install --no-cache-dir -r backend/requirements-dev.txt
+COPY backend/asr/model.json /tmp/vosk-model.json
+COPY scripts/provision_vosk_model.py /tmp/provision_vosk_model.py
+RUN python /tmp/provision_vosk_model.py --manifest /tmp/vosk-model.json --destination /opt/llmerv-models
+ENV VOSK_MODEL_PATH=/opt/llmerv-models/vosk-model-small-cn-0.22
 COPY --chown=1000:1000 backend backend
 COPY --chown=1000:1000 tests tests
 RUN useradd --uid 1000 --create-home app && mkdir /app/data && chown app:app /app/data

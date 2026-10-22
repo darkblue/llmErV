@@ -14,7 +14,10 @@ _SLOTS = threading.BoundedSemaphore(max(1, int(os.getenv("ASR_MAX_SESSIONS", "1"
 
 
 def model_path():
-    return Path(os.getenv("ASR_MODEL") or "models/vosk-model-small-cn-0.22").resolve()
+    return Path(
+        os.getenv("ASR_MODEL")
+        or os.getenv("VOSK_MODEL_PATH", "models/vosk-model-small-cn-0.22")
+    ).resolve()
 
 
 def load_model():
@@ -67,6 +70,7 @@ class VoskStreaming(ASRAdapter):
     def _parse(self, value, final):
         data = json.loads(value)
         text = data.get("text" if final else "partial", "").strip()
+        raw_text = text
         words = data.get("result") or []
         # Vosk returns Chinese tokens separated by spaces; remove only boundaries
         # between Chinese characters, preserving Latin callsigns and numbers.
@@ -81,6 +85,7 @@ class VoskStreaming(ASRAdapter):
             words[0]["start"] if words else self.segment_start,
             words[-1]["end"] if words else end,
             confidence,
+            raw_text,
         )
         if final:
             self.segment_start = end

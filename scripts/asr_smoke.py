@@ -2,7 +2,6 @@
 
 import asyncio
 import json
-import os
 from pathlib import Path
 import resource
 import subprocess
@@ -42,21 +41,23 @@ async def check(path):
             await adapter.end_session()
         rtf = (time.perf_counter() - started) / audio_seconds
     text = "".join(texts)
+    payload = json.dumps(
+        {
+            "engine": "vosk",
+            "expected_synthetic_phrase": PHRASE,
+            "observed_text": text,
+            "partial_count": len(partials),
+            "endpoint_final_audio_times": finalized_at,
+            "audio_seconds": audio_seconds,
+            "inference_rtf": rtf,
+            "peak_rss_mib": resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024,
+        },
+        ensure_ascii=False,
+    )
+    print(payload, flush=True)
     print(
-        json.dumps(
-            {
-                "engine": "vosk",
-                "expected_synthetic_phrase": PHRASE,
-                "observed_text": text,
-                "partial_count": len(partials),
-                "endpoint_final_audio_times": finalized_at,
-                "audio_seconds": audio_seconds,
-                "inference_rtf": rtf,
-                "peak_rss_mib": resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
-                / 1024,
-            },
-            ensure_ascii=False,
-        )
+        "::notice title=ASR observed metrics::" + payload.replace("%", "%25"),
+        flush=True,
     )
     assert partials, "Expected incremental hypotheses before finalization"
     assert any(word in text for word in ("你好", "语音", "指挥")), (
