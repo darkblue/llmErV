@@ -92,7 +92,7 @@ export default function Home() {
       ]);
       if (sessionId.current !== id) return;
       setSegments(items);
-      setEvents(analysis);
+      setEvents(analysis.filter((event) => event.session_id === id));
       setFiles(audio);
       setSelected(audio.find((f) => f.id === items[0]?.source_id));
       setPartial("");
@@ -365,7 +365,10 @@ export default function Home() {
       const analysis = await read<EventInfo[]>(
         `/events?session_id=${encodeURIComponent(segment.session_id)}`,
       );
-      if (sessionId.current === segment.session_id) setEvents(analysis);
+      if (sessionId.current === segment.session_id)
+        setEvents(
+          analysis.filter((event) => event.session_id === segment.session_id),
+        );
       setError("修订已保存，事件分析已更新；原始转写保留。");
     } else setError("修订保存失败，请刷新后重试");
   }

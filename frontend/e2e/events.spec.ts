@@ -99,6 +99,7 @@ test("后续空片段不清空已有事件，展示可展开的时间依据", as
   const second = {
     ...first,
     segment_id: "second",
+    session_id: "fixture",
     text: "收到",
     corrected_text: "收到",
     start_time: 2,
@@ -112,6 +113,7 @@ test("后续空片段不清空已有事件，展示可展开的时间依据", as
       json: [
         {
           segment_id: "first",
+          session_id: "fixture",
           fields: {
             location: {
               value: "27号跑道",
@@ -122,7 +124,15 @@ test("后续空片段不清空已有事件，展示可展开的时间依据", as
         },
         {
           segment_id: "second",
+          session_id: "fixture",
           fields: { location: { value: null, verification: "unknown" } },
+        },
+        {
+          segment_id: "other-session",
+          session_id: "other",
+          fields: {
+            location: { value: "36号跑道", verification: "unverified" },
+          },
         },
       ],
     }),

@@ -1,4 +1,5 @@
 export type EventInfo = {
+  session_id: string;
   segment_id: string;
   mock_excluded?: boolean;
   fields: Record<

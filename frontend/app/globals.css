@@ -416,6 +416,8 @@ footer {
   gap: 8px;
 }
 .event-fields strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
   text-align: right;
   font-weight: 400;
   font-size: 12px;
@@ -425,6 +427,13 @@ footer {
   text-align: right;
   font-size: 9px;
   color: #647d95;
+}
+.event-fields details {
+  grid-column: 1 / -1;
+  min-width: 0;
+  margin-top: 0;
+  overflow-wrap: anywhere;
+  line-height: 1.7;
 }
 details {
   margin-top: 20px;

@@ -174,7 +174,8 @@ export default function ReviewPage() {
       let cancelled = false;
       call<EventInfo[]>("/events?session_id=" + encodeURIComponent(id))
         .then((items) => {
-          if (!cancelled) setEvents(items);
+          if (!cancelled)
+            setEvents(items.filter((event) => event.session_id === id));
         })
         .catch((e) => {
           if (!cancelled) setNotice(e.message);
