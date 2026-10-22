@@ -60,6 +60,15 @@ def vocabulary(model):
     return [word for words in supported.values() for word in words] + ["[unk]"]
 
 
+def grammar(model):
+    words = vocabulary(model)
+    digits = [word for word in words if word != "[unk]"]
+    # Vosk estimates a bigram LM from these phrases. Single-word entries alone
+    # favor utterance endings, so include every transition (including repeats),
+    # without enumerating or favoring any operational callsign/number.
+    return words + [f"{first} {second}" for first in digits for second in digits]
+
+
 def candidate(text, constrained=False):
     """Only a whole digit utterance. No broad homophone replacement in prose."""
     compact = re.sub(r"\s+", "", text)

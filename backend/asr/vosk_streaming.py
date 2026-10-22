@@ -57,10 +57,10 @@ class VoskStreaming(ASRAdapter):
 
             model = await asyncio.to_thread(load_model)
             if self.radio_digits:
-                from .radio_digits import vocabulary
+                from .radio_digits import grammar
 
                 self.recognizer = KaldiRecognizer(
-                    model, 16000, json.dumps(vocabulary(model), ensure_ascii=False)
+                    model, 16000, json.dumps(grammar(model), ensure_ascii=False)
                 )
             else:
                 self.recognizer = KaldiRecognizer(model, 16000)

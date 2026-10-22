@@ -8,7 +8,7 @@ from backend.main import app
 from backend.models import save, get
 from backend.asr.base import ASRError
 from backend.asr.base import ASRResult
-from backend.asr.radio_digits import candidate, profile, vocabulary
+from backend.asr.radio_digits import candidate, profile, vocabulary, grammar
 from backend.asr import vosk_streaming as streaming
 
 client = TestClient(app)
@@ -44,6 +44,10 @@ def test_grammar_checks_native_vocabulary_and_fails_explicitly():
 
     words = vocabulary(Model())
     assert "腰" in words and "幺" not in words and "[unk]" in words
+    assert all(
+        pair in grammar(Model())
+        for pair in ["腰 两", "两 拐", "拐 洞", "洞 洞", "九 三"]
+    )
     Model.vosk_model_find_word = lambda self, word: -1
     with pytest.raises(ASRError, match="RADIO_DIGIT_VOCABULARY_UNSUPPORTED"):
         vocabulary(Model())

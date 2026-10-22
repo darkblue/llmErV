@@ -35,7 +35,7 @@ jobs:
           DATA_DIR: /tmp/llmerv-real-asr-data
         run: |
           PYTHONPATH=. python scripts/asr_smoke.py 2>&1 | tee /tmp/real-asr-smoke.log
-          PYTHONPATH=. python scripts/radio_digits_smoke.py 2>&1 | tee /tmp/radio-digits-smoke.log
+          RADIO_DIGIT_FIXTURE_OUT=/tmp/radio-digits.wav PYTHONPATH=. python scripts/radio_digits_smoke.py 2>&1 | tee /tmp/radio-digits-smoke.log
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -52,6 +52,7 @@ jobs:
           ASR_MODEL: /tmp/asr-models/vosk-model-small-cn-0.22
           ASR_PROVIDER: vosk
           DATA_DIR: /tmp/llmerv-real-browser-data
+          RADIO_DIGIT_FIXTURE: /tmp/radio-digits.wav
         run: |
           uvicorn backend.main:app --host 0.0.0.0 --port 8000 > /tmp/backend.log 2>&1 &
           llmerv_asr_pid=$!

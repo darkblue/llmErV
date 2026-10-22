@@ -1,6 +1,8 @@
 """Real constrained decoder check; synthetic audio is not airport accuracy data."""
 
 import json
+import os
+import shutil
 import subprocess
 import tempfile
 import wave
@@ -110,6 +112,8 @@ def check():
             + encoded.replace("%", "%25"),
             flush=True,
         )
+        if os.getenv("RADIO_DIGIT_FIXTURE_OUT"):
+            shutil.copyfile(path / "digits.wav", os.environ["RADIO_DIGIT_FIXTURE_OUT"])
         assert partials and finals, "Expected real incremental decoding"
         assert all(
             m["start_time"] >= 0.5 and m["recognition_mode"] == "radio_digits"
