@@ -1,5 +1,8 @@
 name: Real ASR
 on: [push, pull_request]
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   chinese-streaming:
     runs-on: ubuntu-24.04
@@ -49,12 +52,15 @@ jobs:
           ASR_PROVIDER: vosk
           DATA_DIR: /tmp/llmerv-real-browser-data
         run: |
-          uvicorn backend.main:app --host 0.0.0.0 --port 8000 > /tmp/real-asr-backend.log 2>&1 &
+          uvicorn backend.main:app --host 0.0.0.0 --port 8000 > /tmp/backend.log 2>&1 &
           llmerv_asr_pid=$!
           trap 'kill "$llmerv_asr_pid" 2>/dev/null || true' EXIT
           timeout 45s bash -c 'until curl -fsS http://localhost:8000/health > /dev/null; do sleep 1; done'
           cd frontend
-          npx playwright test --config=playwright.real.config.ts 2>&1 | tee /tmp/real-asr-browser.log
+          npx playwright test --config=playwright.real.config.ts 2>&1 | tee /tmp/browser.log
+      - name: Summarize inference or browser failures
+        if: failure()
+        run: python scripts/ci_failure_summary.py
       - name: Retain inference report
         if: always()
         uses: actions/upload-artifact@v4
@@ -62,7 +68,7 @@ jobs:
           name: real-asr-report-${{ github.event_name }}
           path: |
             /tmp/real-asr-smoke.log
-            /tmp/real-asr-backend.log
-            /tmp/real-asr-browser.log
+            /tmp/backend.log
+            /tmp/browser.log
             frontend/test-results/
           if-no-files-found: ignore

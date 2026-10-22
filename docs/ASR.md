@@ -36,7 +36,7 @@ ASR_PROVIDER=vosk ASR_MODEL=models/vosk-model-small-cn-0.22 uvicorn backend.main
 识别完全为空时提示没有可确认语音，不生成虚假 Final。Partial 更新同一个未确认片段；Final 固定后下一个片段使用新的 segment_id。停止、断线均释放会话资源。
 
 ## 验证和限制
-新增适配器状态/隔离/忙时清理、WebSocket 多段 Final、缺模型状态、固定模型 SHA256/安全解压测试。CI 的 Real ASR job 使用真实中文模型，通过 REST 上传及 WebSocket 识别 MIT 许可的 FunASR 普通话样例并核对内容关键词、Partial、停止前 Final 和历史保存。模板测试替身只验证协议，不作为识别证据。
+新增适配器状态/隔离/忙时清理、WebSocket 多段 Final、缺模型状态、固定模型 SHA256/安全解压测试。CI 的 Real ASR job 使用真实中文模型，通过 REST 上传及 WebSocket 识别 MIT 许可的 FunASR 普通话样例并核对内容关键词、Partial、停止前 Final 和历史保存。模板测试替身只验证协议，不作为识别证据。Real ASR 工作流另用 `frontend/playwright.real.config.ts` 在真实模型后台上执行浏览器上传、按播放分片、暂停/继续及 Final 验收；默认 Mock 浏览器测试与之分开计数。
 
 一次样例实际输出：参考“欢迎大家来体验达摩院推出的语音识别模型”，识别为“欢迎大家来体验打磨远推出的语音识别模型”。约 7.55 秒（含 2 秒尾部静音）输入产生 23 次 Partial、停止前 Final；该次 CI 测得峰值 RSS 236.9 MiB、RTF 0.24。不是代表性数据集，不据此声称机场录音准确率。早期 eSpeak 合成中文测试因声音质量差未通过内容断言，未据此宣布准确率达标。
 
