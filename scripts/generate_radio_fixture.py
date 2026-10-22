@@ -12,7 +12,7 @@ MANIFEST = Path(__file__).resolve().parents[1] / "tests/fixtures/radio-tts-model
 
 def generate(model_dir, output):
     import numpy as np
-    import sherpa_onnx
+    import onnxruntime as ort
 
     manifest = json.loads(MANIFEST.read_text())
     for name, expected in manifest["files"].items():
@@ -40,47 +40,90 @@ def generate(model_dir, output):
             temporary.replace(path)
         finally:
             temporary.unlink(missing_ok=True)
-    config = sherpa_onnx.OfflineTtsConfig(
-        model=sherpa_onnx.OfflineTtsModelConfig(
-            vits=sherpa_onnx.OfflineTtsVitsModelConfig(
-                model=str(model_dir / "model.onnx"),
-                lexicon=str(model_dir / "lexicon.txt"),
-                tokens=str(model_dir / "tokens.txt"),
-                dict_dir=str(model_dir / "dict"),
-                noise_scale=0.667,
-                noise_scale_w=0.8,
-            ),
-            num_threads=1,
-            provider="cpu",
+    # Follow the upstream Melo ONNX test recipe directly. In particular, use
+    # model speaker_id and the lexicon's separate phone/tone sequences.
+    # https://github.com/k2-fsa/sherpa-onnx/blob/master/scripts/melo-tts/test.py
+    tokens = {
+        word: int(index)
+        for word, index in (
+            line.split() for line in (model_dir / "tokens.txt").read_text().splitlines()
         )
+    }
+    readings = ["幺", "两", "拐", "洞"]
+    lexicon = {}
+    for line in (model_dir / "lexicon.txt").read_text().splitlines():
+        parts = line.split()
+        if parts and parts[0] in readings:
+            values = parts[1:]
+            count = len(values) // 2
+            lexicon[parts[0]] = (
+                [tokens[p] for p in values[:count]],
+                [int(t) for t in values[count:]],
+            )
+    ort.set_seed(0)
+    options = ort.SessionOptions()
+    options.intra_op_num_threads = 1
+    options.inter_op_num_threads = 1
+    model = ort.InferenceSession(
+        str(model_dir / "model.onnx"),
+        sess_options=options,
+        providers=["CPUExecutionProvider"],
     )
-    tts = sherpa_onnx.OfflineTts(config)
+    metadata = model.get_modelmeta().custom_metadata_map
+    sample_rate = int(metadata["sample_rate"])
+    speaker_id = int(metadata["speaker_id"])
+    print(
+        json.dumps(
+            {
+                "sample_rate": sample_rate,
+                "speaker_id": speaker_id,
+                "add_blank": metadata["add_blank"],
+            }
+        ),
+        flush=True,
+    )
     clips = []
     metrics = []
-    for reading in ["幺", "两", "拐", "洞"]:
-        audio = tts.generate(reading, sid=0, speed=0.5)
-        clip = np.asarray(audio.samples).copy()
+    for reading in readings:
+        phones, tones = lexicon[reading]
+        if int(metadata["add_blank"]):
+            padded_phones = [0] * (2 * len(phones) + 1)
+            padded_tones = [0] * (2 * len(tones) + 1)
+            padded_phones[1::2], padded_tones[1::2] = phones, tones
+            phones, tones = padded_phones, padded_tones
+        clip = (
+            model.run(
+                ["y"],
+                {
+                    "x": np.asarray([phones], dtype=np.int64),
+                    "tones": np.asarray([tones], dtype=np.int64),
+                    "x_lengths": np.asarray([len(phones)], dtype=np.int64),
+                    "sid": np.asarray([speaker_id], dtype=np.int64),
+                    "noise_scale": np.asarray([0.6], dtype=np.float32),
+                    "noise_scale_w": np.asarray([0.8], dtype=np.float32),
+                    "length_scale": np.asarray([2.0], dtype=np.float32),
+                },
+            )[0]
+            .reshape(-1)
+            .astype(np.float32)
+        )
         peak = float(np.max(np.abs(clip))) if len(clip) else 0
         rms = float(np.sqrt(np.mean(clip**2))) if len(clip) else 0
         metrics.append(
             {
                 "reading": reading,
-                "seconds": len(clip) / audio.sample_rate,
+                "seconds": len(clip) / sample_rate,
                 "peak": peak,
                 "rms": rms,
             }
         )
         print(json.dumps(metrics[-1], ensure_ascii=False), flush=True)
-        if (
-            len(clip) < audio.sample_rate // 10
-            or not np.isfinite(clip).all()
-            or peak < 0.001
-        ):
+        if len(clip) < sample_rate // 10 or not np.isfinite(clip).all() or peak < 0.001:
             raise ValueError("Synthetic fixture has no usable voiced audio")
         clips.extend(
             [
                 clip / peak * 0.8,
-                np.zeros(round(audio.sample_rate * 0.3), dtype=np.float32),
+                np.zeros(round(sample_rate * 0.3), dtype=np.float32),
             ]
         )
     samples = np.clip(np.concatenate(clips), -1, 1)
@@ -88,12 +131,12 @@ def generate(model_dir, output):
     with wave.open(str(output), "wb") as wav:
         wav.setnchannels(1)
         wav.setsampwidth(2)
-        wav.setframerate(audio.sample_rate)
+        wav.setframerate(sample_rate)
         wav.writeframes((samples * 32767).astype("<i2").tobytes())
     print(
         json.dumps(
             {
-                "generator": "MeloTTS/sherpa-onnx",
+                "generator": "MeloTTS/ONNX Runtime, upstream phone/tone recipe",
                 "license": "MIT",
                 "text": manifest["text"],
                 "model_commit": manifest["commit"],
