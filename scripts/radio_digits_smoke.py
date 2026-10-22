@@ -23,7 +23,7 @@ def check():
             [
                 "espeak-ng",
                 "-v",
-                "cmn",
+                "cmn-latn-pinyin",
                 "-s",
                 "110",
                 "-w",
@@ -102,7 +102,14 @@ def check():
             "reference": "1270",
             "synthesis_input": "yao1 liang3 guai3 dong4 (explicit Mandarin tones)",
             "synthesis_ipa": subprocess.check_output(
-                ["espeak-ng", "-v", "cmn", "-q", "--ipa", "yao1 liang3 guai3 dong4"],
+                [
+                    "espeak-ng",
+                    "-v",
+                    "cmn-latn-pinyin",
+                    "-q",
+                    "--ipa",
+                    "yao1 liang3 guai3 dong4",
+                ],
                 text=True,
             ).strip(),
             "observed_digits": observed,
