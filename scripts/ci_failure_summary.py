@@ -12,6 +12,7 @@ def annotate(title, text):
 if __name__ == "__main__":
     for name in (
         "radio-digits-smoke.log",
+        "radio-fixture-generation.log",
         "backend.log",
         "browser.log",
         "frontend-install.log",
