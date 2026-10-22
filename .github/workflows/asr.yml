@@ -18,11 +18,16 @@ jobs:
         with:
           python-version: '3.12'
       - name: Install integration prerequisites
+        timeout-minutes: 5
         run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends ffmpeg
-          pip install -r backend/requirements-dev.txt
-          pip install sherpa-onnx==1.13.8
+          {
+            if ! command -v ffmpeg >/dev/null; then
+              sudo apt-get -o Acquire::Retries=1 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 update
+              sudo apt-get -o Acquire::Retries=1 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 install -y --no-install-recommends ffmpeg
+            fi
+            pip install --retries 1 --timeout 30 -r backend/requirements-dev.txt
+            pip install --retries 1 --timeout 30 sherpa-onnx==1.13.8
+          } 2>&1 | tee /tmp/asr-install.log
       - uses: actions/cache@v4
         with:
           path: /tmp/asr-models
@@ -34,6 +39,7 @@ jobs:
           path: /tmp/radio-tts-models
           key: radio-tts-${{ runner.os }}-${{ hashFiles('tests/fixtures/radio-tts-model.json') }}
       - name: Generate licensed self-authored radio-digit speech
+        timeout-minutes: 5
         run: python scripts/generate_radio_fixture.py --model-dir /tmp/radio-tts-models --output /tmp/radio-source.wav 2>&1 | tee /tmp/radio-fixture-generation.log
       - name: Verify upload, incremental inference and history on licensed Mandarin
         env:
@@ -79,6 +85,7 @@ jobs:
             /tmp/real-asr-smoke.log
             /tmp/radio-digits-smoke.log
             /tmp/radio-fixture-generation.log
+            /tmp/asr-install.log
             /tmp/radio-source.wav
             /tmp/radio-digits.wav
             /tmp/backend.log
