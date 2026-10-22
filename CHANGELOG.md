@@ -1,4 +1,7 @@
 # Changelog
+## 0.3.1 — 2026-10-22
+Repair event sidebar aggregation, history loading and review-to-console navigation. Manual and reference revisions now recompute evidence-bound events atomically; event reads derive from current text for legacy compatibility. Explicit save action, corrected transcript display, event evidence/time/version, empty/Mock feedback and review analysis preview. Extend literal event rules to all ten fields and suppress common denied hazards; no ASR retraining or automatic operational commands.
+
 ## 0.1.0 — 2026-10-22
 Initial Phase 1 development demo: real-time uploaded audio transport, explicitly labeled Mock ASR, optional unverified online FunASR adapter, audio safety checks, persistent transcripts/manual corrections, evidence-based event rules, dictionary, Chinese console, tests and container deployment assets.
 

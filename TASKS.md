@@ -1,4 +1,5 @@
 # Delivery status
+- [x] Sidebar keeps session evidence across empty segments, loads history and follows manual/reference corrections with versioned evidence; revision UI explicitly saves and previews updated analysis
 - [x] P0 upload, metadata, playback, Chinese console
 - [x] P1 real-time PCM transport, Mock, lifecycle, Partial/Final, isolation
 - [ ] P2 actual FunASR inference acceptance (adapter implemented; model access blocked)

@@ -15,6 +15,7 @@ import {
   Download,
 } from "lucide-react";
 import { Button } from "../components/ui/button";
+import { EventAnalysis, type EventInfo } from "../components/event-analysis";
 const API = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
 type AudioFile = {
   id: string;
@@ -27,6 +28,8 @@ type AudioFile = {
 };
 type Segment = {
   segment_id: string;
+  session_id: string;
+  source_id: string;
   text: string;
   original_text?: string;
   corrected_text?: string;
@@ -34,21 +37,6 @@ type Segment = {
   end_time: number;
   confidence?: number | null;
   asr_engine: string;
-};
-type EventInfo = {
-  fields: Record<string, { value: string | null; verification: string }>;
-};
-const labels: Record<string, string> = {
-  event_type: "事件类型",
-  flight: "关联航班",
-  location: "事件位置",
-  occurred_at: "发生时间",
-  units: "涉及单位",
-  emergency_level: "应急等级",
-  casualties: "伤亡信息",
-  resources: "资源需求",
-  instructions: "处置指令",
-  status: "事件状态",
 };
 export default function Home() {
   const [files, setFiles] = useState<AudioFile[]>([]),
@@ -69,7 +57,7 @@ export default function Home() {
     [rtf, setRtf] = useState(0),
     [partial, setPartial] = useState(""),
     [segments, setSegments] = useState<Segment[]>([]),
-    [event, setEvent] = useState<EventInfo>(),
+    [events, setEvents] = useState<EventInfo[]>([]),
     [words, setWords] = useState(""),
     [history, setHistory] = useState<
       { id: string; status: string; audio_time: number }[]
@@ -87,7 +75,31 @@ export default function Home() {
     sending = useRef(false),
     lastSent = useRef(0),
     statusRef = useRef("idle"),
-    hasFinal = useRef(false);
+    hasFinal = useRef(false),
+    sessionId = useRef("");
+  async function read<T>(path: string): Promise<T> {
+    const r = await fetch(API + path);
+    if (!r.ok) throw Error("读取失败，请检查后端连接");
+    return r.json();
+  }
+  async function loadSession(id: string) {
+    sessionId.current = id;
+    try {
+      const [items, analysis, audio] = await Promise.all([
+        read<Segment[]>(`/sessions/${id}/transcripts`),
+        read<EventInfo[]>(`/events?session_id=${encodeURIComponent(id)}`),
+        read<AudioFile[]>("/audio"),
+      ]);
+      if (sessionId.current !== id) return;
+      setSegments(items);
+      setEvents(analysis.filter((event) => event.session_id === id));
+      setFiles(audio);
+      setSelected(audio.find((f) => f.id === items[0]?.source_id));
+      setPartial("");
+    } catch (e) {
+      setError(String(e));
+    }
+  }
   const load = async () => {
     setFiles(await fetch(API + "/audio").then((r) => r.json()));
   };
@@ -114,11 +126,24 @@ export default function Home() {
   useEffect(() => {
     load().catch(() => setError("后端连接失败"));
     refreshASR();
+    const id = new URLSearchParams(window.location.search).get("session");
+    if (id) loadSession(id);
+    const onFocus = () => {
+      if (
+        sessionId.current &&
+        !["connecting", "running", "paused", "stopping"].includes(
+          statusRef.current,
+        )
+      )
+        loadSession(sessionId.current);
+    };
+    window.addEventListener("focus", onFocus);
     fetch(API + "/hotwords")
       .then((r) => r.json())
       .then((x) => setWords(x.words.join("\n")))
       .catch(() => {});
     return () => {
+      window.removeEventListener("focus", onFocus);
       ws.current?.close();
       ctx.current?.close();
       if (timer.current) clearInterval(timer.current);
@@ -146,7 +171,8 @@ export default function Home() {
     setError("");
     setSegments([]);
     setPartial("");
-    setEvent(undefined);
+    setEvents([]);
+    sessionId.current = "";
     setProgress(0);
     updateStatus("connecting");
     sent.current = 0;
@@ -173,6 +199,7 @@ export default function Home() {
         const m = JSON.parse(e.data);
         if (m.type === "model_status") setMode("模型加载中 · " + m.asr_engine);
         if (m.type === "ready") {
+          sessionId.current = m.session_id;
           setMode(
             m.asr_engine === "mock"
               ? "模拟识别"
@@ -202,7 +229,11 @@ export default function Home() {
             m,
           ]);
         }
-        if (m.type === "event") setEvent(m);
+        if (m.type === "event")
+          setEvents((old) => [
+            ...old.filter((x) => x.segment_id !== m.segment_id),
+            m,
+          ]);
         if (m.type === "state") {
           updateStatus(m.status);
           if (m.status === "running") {
@@ -326,15 +357,20 @@ export default function Home() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ text }),
     });
-    if (r.ok)
+    if (r.ok) {
+      const value = await r.json();
       setSegments((s) =>
-        s.map((x) =>
-          x.segment_id === segment.segment_id
-            ? { ...x, corrected_text: text }
-            : x,
-        ),
+        s.map((x) => (x.segment_id === segment.segment_id ? value : x)),
       );
-    else setError("修订保存失败");
+      const analysis = await read<EventInfo[]>(
+        `/events?session_id=${encodeURIComponent(segment.session_id)}`,
+      );
+      if (sessionId.current === segment.session_id)
+        setEvents(
+          analysis.filter((event) => event.session_id === segment.session_id),
+        );
+      setError("修订已保存，事件分析已更新；原始转写保留。");
+    } else setError("修订保存失败，请刷新后重试");
   }
   async function saveWords() {
     const r = await fetch(API + "/hotwords", {
@@ -528,12 +564,7 @@ export default function Home() {
                 key={s.id}
                 onClick={async () => {
                   if (locked) return;
-                  setSegments(
-                    await fetch(
-                      API + "/sessions/" + s.id + "/transcripts",
-                    ).then((r) => r.json()),
-                  );
-                  setEvent(undefined);
+                  await loadSession(s.id);
                 }}
               >
                 {s.id.slice(0, 8)} · {s.status} ·{" "}
@@ -640,25 +671,35 @@ export default function Home() {
                   </span>
                   <span className="final-tag">FINAL · {s.asr_engine}</span>
                 </div>
-                <p>{s.text}</p>
+                <p>{s.corrected_text ?? s.text}</p>
                 {s.confidence != null && (
                   <small>
                     词级置信度均值 {(s.confidence * 100).toFixed(0)}
                     %（非准确率）
                   </small>
                 )}
-                <label>
-                  人工修订
-                  <textarea
-                    aria-label="人工修订"
-                    key={s.segment_id + "edit"}
-                    defaultValue={s.corrected_text || s.text}
-                    onBlur={(e) => {
-                      if (e.target.value !== (s.corrected_text || s.text))
-                        revise(s, e.target.value);
-                    }}
-                  />
-                </label>
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    const text = String(
+                      new FormData(e.currentTarget).get("text") ?? "",
+                    );
+                    revise(s, text).catch(() =>
+                      setError("修订或分析更新失败，请刷新历史记录核对。"),
+                    );
+                  }}
+                >
+                  <label>
+                    人工修订
+                    <textarea
+                      aria-label="人工修订"
+                      name="text"
+                      key={s.segment_id + (s.corrected_text ?? s.text)}
+                      defaultValue={s.corrected_text ?? s.text}
+                    />
+                  </label>
+                  <Button type="submit">保存修订并更新分析</Button>
+                </form>
                 <small>原始文本：{s.original_text || s.text}</small>
                 <Link href={"/review?segment=" + s.segment_id} className="cyan">
                   参考规范与单卡修订 →
@@ -686,20 +727,14 @@ export default function Home() {
             <span>AI ASSIST</span>
           </div>
           <div className="advisory">辅助信息 · 不自动发出调度或运行指令</div>
-          <div className="event-header">
-            <span className="dot" /> {event ? "规则提取完成" : "等待最终转写"}
-          </div>
-          <div className="event-fields">
-            {Object.entries(labels).map(([key, label]) => (
-              <div key={key}>
-                <small>{label}</small>
-                <strong>{event?.fields[key]?.value || "未知"}</strong>
-                <span>
-                  {event?.fields[key]?.value ? "待核实" : "无原文证据"}
-                </span>
-              </div>
-            ))}
-          </div>
+          <EventAnalysis events={events} finalCount={segments.length} />
+          <Button
+            variant="outline"
+            disabled={!sessionId.current || locked}
+            onClick={() => loadSession(sessionId.current)}
+          >
+            刷新当前分析
+          </Button>
           <details className="dictionary">
             <summary>专业术语与热词词典</summary>
             <p>

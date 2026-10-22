@@ -4,7 +4,7 @@ FastAPI `/docs` serves generated REST OpenAPI.
 - POST /audio multipart `file`: 201 metadata; 413 size, 415 format, 422 invalid/duration/decode failure.
 - GET /audio?q=: filename search; GET /audio/{id}/content: normalized WAV; DELETE /audio/{id}: delete audio, history retained.
 - GET /sessions; GET /sessions/{id}/transcripts; PATCH /transcripts/{segment_id} `{text}`: preserve original, update correction.
-- GET /events: rule outputs, evidence and verification statuses.
+- GET /events?session_id=: current rule outputs, evidence and verification statuses; optional session filter. Results derive from each segment's current corrected_text, falling back to text for legacy records, so old persisted analysis cannot override revisions. Ordered by audio timestamp. `review_version` and `mock_excluded` describe the basis.
 - GET/PUT /hotwords: `{words: string[]}`; dictionary_only, native_supported=false. Import/export this JSON in UI.
 
 WS /ws/recognize:
@@ -26,7 +26,7 @@ WS /ws/recognize:
 - `POST /transcripts/import` `{source_id,text,start_time,end_time}` imports user text within recorded duration. Tagged manual_input, never a genuine ASR result.
 - `POST /transcripts/{id}/review` `{reference_ids,communication_context}` returns base_hash, candidate spans, references, requires_audio_review and can_apply. Context: `aoc_rescue` (default), `atc_air_ground`, `unknown`. Parsed supplied 2003 standard enables context-sensitive human checklist, not compliance findings.
 - `POST /transcripts/{id}/review/apply` additionally needs `{base_hash,suggestion_ids,acknowledge_audio_review:true}`. Server recomputes proposals, checks source verification, rejects overlap and writes correction+audit atomically. Original text unchanged.
-- `GET /transcripts/{id}/revisions` returns audit including manual PATCH edits from original UI. No authenticated operator identity yet. Event analysis remains based on original transcript; no silent reanalysis.
+- `GET /transcripts/{id}/revisions` returns audit including manual PATCH edits from original UI. No authenticated operator identity yet. Saving a manual/reference revision atomically updates corrected_text, its derived event and the audit (`event_reanalysis=completed`). Original text remains unchanged; event evidence identifies the revision and remains unverified.
 - Errors: REFERENCE_NOT_FOUND / FINAL_SEGMENT_NOT_FOUND (404); REFERENCE_TOO_LARGE (413); PDF_REQUIRED (415); INVALID_PDF_OR_EXTRACTION_FAILED, UNSAFE_RULE_USE_MANUAL_REVIEW, RULE_NOT_SUPPORTED_BY_EXCERPT, SOURCE_REVIEW_ACK_REQUIRED, AUDIO_REVIEW_ACK_REQUIRED, REFERENCE_REVIEW_REQUIRED, INVALID_SUGGESTION, OVERLAPPING_SUGGESTIONS, TRANSCRIPT_OUTSIDE_AUDIO (422); STALE_TRANSCRIPT_REVIEW_AGAIN (409).
 - Audio extension allowlist now also accepts `.mp4`; FFmpeg extracts audio only. Existing upload limits apply.
 
