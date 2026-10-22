@@ -1,4 +1,6 @@
 # llmErV
+数字专项识别：在识别策略中选择“数字报读专项”，圈定最长 30 秒数字短句；支持 1 幺、2 两、7 拐、0 洞，候选须逐位回听确认。[操作与边界](docs/RADIO_DIGITS.md)
+
 主界面事件分析与人工修订操作说明：[docs/REVIEW.md](docs/REVIEW.md)。保存修订后会重算事件分析，原始识别文本保留；这不会训练 ASR 模型。
 
 Airport Emergency Rescue Voice Intelligence Platform · 机场应急救援智能语音平台

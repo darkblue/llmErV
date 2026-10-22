@@ -237,6 +237,16 @@ export default function Home() {
         const m = JSON.parse(e.data);
         if (m.type === "model_status") setMode("模型加载中 · " + m.asr_engine);
         if (m.type === "ready") {
+          if (
+            recognitionMode === "radio_digits" &&
+            m.recognition_mode !== "radio_digits"
+          ) {
+            setError("后端版本尚未支持数字专项，请先更新后端。");
+            cleanup();
+            updateStatus("error");
+            socket.close();
+            return;
+          }
           sessionId.current = m.session_id;
           setMode(
             m.asr_engine === "mock"

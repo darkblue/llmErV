@@ -22,6 +22,7 @@ def test_standard_readings_and_conservative_mapping():
     value = candidate("洞 幺 两 拐 洞")
     assert value["digits"] == "01270" and value["readings"] == "洞幺两拐洞"
     assert value["requires_audio_review"] and value["verification"] == "unverified"
+    assert candidate("幺，两，拐，洞。")["digits"] == "1270"
     for text in [
         "两架飞机",
         "拐弯到洞口",

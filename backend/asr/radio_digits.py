@@ -52,7 +52,11 @@ def profile():
 
 def vocabulary(model):
     supported = {
-        digit: [word for word in words if model.vosk_model_find_word(word) >= 0]
+        digit: (
+            [READINGS[digit]]
+            if model.vosk_model_find_word(READINGS[digit]) >= 0
+            else [word for word in words if model.vosk_model_find_word(word) >= 0]
+        )
         for digit, words in ALIASES.items()
     }
     if any(not supported[digit] for digit in READINGS):
@@ -71,7 +75,7 @@ def grammar(model):
 
 def candidate(text, constrained=False):
     """Only a whole digit utterance. No broad homophone replacement in prose."""
-    compact = re.sub(r"\s+", "", text)
+    compact = re.sub(r"[\s、，,]+", "", text).strip("。！？!?")
     mapping = {word: digit for digit, word in READINGS.items()}
     if constrained:
         mapping.update(

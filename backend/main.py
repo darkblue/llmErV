@@ -31,7 +31,7 @@ async def lifespan(app):
     yield
 
 
-app = FastAPI(title="llmErV", version="0.3.1", lifespan=lifespan)
+app = FastAPI(title="llmErV", version="0.4.0", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[os.getenv("FRONTEND_URL", "http://localhost:3000")],

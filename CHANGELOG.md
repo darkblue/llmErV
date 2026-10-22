@@ -1,4 +1,7 @@
 # Changelog
+## 0.4.0 — 2026-10-22
+Opt-in Vosk constrained radio-digit streaming decoder for selected audio ranges up to 30s, based on supplied MH/T 4014-2003 table 1 (1幺/2两/7拐/0洞). Shared weights and single-session resource limit retained. Original model text, absolute source timestamps, unverified digit candidates, explicit audio-reviewed application and audit; ordinary conversation is not globally rewritten or model-trained. Real-model synthetic acceptance and browser review checks added, with observed outcomes reported by CI.
+
 ## 0.3.1 — 2026-10-22
 Repair event sidebar aggregation, history loading and review-to-console navigation. Manual and reference revisions now recompute evidence-bound events atomically; event reads derive from current text for legacy compatibility. Explicit save action, corrected transcript display, event evidence/time/version, empty/Mock feedback and review analysis preview. Extend literal event rules to all ten fields and suppress common denied hazards; no ASR retraining or automatic operational commands.
 
