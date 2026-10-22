@@ -47,8 +47,8 @@ def generate(model_dir, output):
                 lexicon=str(model_dir / "lexicon.txt"),
                 tokens=str(model_dir / "tokens.txt"),
                 dict_dir=str(model_dir / "dict"),
-                noise_scale=0.0,
-                noise_scale_w=0.0,
+                noise_scale=0.667,
+                noise_scale_w=0.8,
             ),
             num_threads=1,
             provider="cpu",
@@ -58,7 +58,7 @@ def generate(model_dir, output):
     clips = []
     metrics = []
     for reading in ["幺", "两", "拐", "洞"]:
-        audio = tts.generate(reading, sid=0, speed=1.0)
+        audio = tts.generate(reading, sid=0, speed=0.5)
         clip = np.asarray(audio.samples).copy()
         peak = float(np.max(np.abs(clip))) if len(clip) else 0
         rms = float(np.sqrt(np.mean(clip**2))) if len(clip) else 0
